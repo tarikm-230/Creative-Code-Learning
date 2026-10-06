@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creative Code in 48h</title>
+<meta name="description" content="A project-based crash course in creative coding with p5.js: learn to code from zero and build two audio-reactive visual projects for DJs in 48 hours.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-root=".">
+<header class="topbar" id="topbar"></header>
+<main class="home">
+
+<section class="hero">
+  <div>
+    <h1>Creative Code<br><span>in 48 hours.</span></h1>
+    <p>Learn to code from zero, then build <strong>two audio-reactive visual projects</strong> for your portfolio: a generative video for one song, and a live visual engine your DJ friend can run during a set.</p>
+    <div class="hero__actions">
+      <a class="btn btn--big" id="resume" href="lessons/00-start-here.html">Start lesson 00 →</a>
+      <a class="btn btn--big btn--ghost" href="#plan">See the 48h plan</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><small>Portfolio due</small><strong>Thu 8 Oct, 12:00</strong></div>
+      <div class="stat"><small>Time left</small><span id="countdown">—</span></div>
+    </div>
+    <div class="progress" id="progress-bar"><div class="progress__fill"></div></div>
+    <div class="progress__text"></div>
+  </div>
+  <div class="hero__art"><canvas id="hero-canvas" width="600" height="600" aria-label="Animated radial spectrum"></canvas></div>
+</section>
+
+<section class="section">
+  <h2>What you'll make</h2>
+  <p class="lead">Everything in this course leads to these two pieces.</p>
+  <div class="split">
+    <a class="box card card--project" href="projects/p1-song-portrait.html">
+      <div class="card__top"><span class="num">P1</span><span class="card__time">≈ 5 h</span></div>
+      <h4>Song Portrait</h4>
+      <p>A full-screen generative visual made for one specific track. It follows the intro, breakdown and drop, has three layers (mood, rhythm, detail), a title card and a fade-out. Ends up as a 30–90 s video plus a playable HTML file.</p>
+      <span class="card__status">Open the brief →</span>
+    </a>
+    <a class="box card card--project" href="projects/p2-setlist-engine.html">
+      <div class="card__top"><span class="num">P2</span><span class="card__time">≈ 6 h</span></div>
+      <h4>Setlist Engine</h4>
+      <p>A live VJ instrument for a whole DJ set. It has a scene and palette for each track, title cards, live mic or line-in input, beat detection with a tap-tempo backup, blackout and strobe, and it runs offline in fullscreen.</p>
+      <span class="card__status">Open the brief →</span>
+    </a>
+  </div>
+</section>
+
+<section class="section" id="plan">
+  <h2>Your 48-hour plan</h2>
+  <p class="lead">About 24 hours of focused work, plus two real nights of sleep, meals and a buffer. Set your start time, and the plan fills in real clock times and warns you if anything runs past the deadline.</p>
+  <div class="planner-controls">
+    <label for="start-time">I start at</label>
+    <input type="datetime-local" id="start-time">
+    <button class="btn btn--small btn--ghost" id="start-now">Start now</button>
+  </div>
+  <div id="planner"></div>
+</section>
+
+<section class="section">
+  <h2>Course map</h2>
+  <p class="lead">Each lesson has live code you can edit, small "try this" exercises, and a challenge that becomes a building block for the projects.</p>
+  <div id="course-map"></div>
+</section>
+
+<section class="section">
+  <h2>How to learn fast</h2>
+  <div class="split">
+    <div class="box"><h3>Type, don't just read</h3><p>Change every number you see. Break things on purpose. Reading code teaches you very little; changing it and seeing what happens teaches you a lot.</p></div>
+    <div class="box"><h3>Timebox the challenges</h3><p>Give each challenge its stated time. If you're stuck at the end, open the solution, understand it, and move on. The deadline matters more than perfection.</p></div>
+    <div class="box"><h3>Keep your challenge code</h3><p>Your edits are saved in this browser, and <strong>⤓ Export</strong> saves any sketch as a file. Many challenges get reused as project scenes, and they make great process shots.</p></div>
+    <div class="box"><h3>Get the music early</h3><p>Ask your DJ friend <em>now</em> for 2–3 favorite tracks and a recent setlist. You'll need them for the projects.</p></div>
+  </div>
+</section>
+
+<section class="section" id="run-locally">
+  <h2>Opening this site</h2>
+  <div class="split">
+    <div class="box">
+      <h3>Online (recommended)</h3>
+      <p>Host it free on <strong>GitHub Pages</strong>: in the repository, go to <em>Settings → Pages</em>, set <em>Source</em> to "Deploy from a branch", pick the branch and the <code>/ (root)</code> folder, and save. After a minute the site is live at <code>https://&lt;user&gt;.github.io/&lt;repo&gt;/</code>.</p>
+    </div>
+    <div class="box">
+      <h3>Offline</h3>
+      <p>Everything is bundled: p5.js, p5.sound, the editor and the demo track. You can double-click <code>index.html</code>, or for the most reliable experience run a tiny local server in this folder:</p>
+<pre class="snippet">python3 -m http.server 8000
+# then open http://localhost:8000</pre>
+    </div>
+    <div class="box">
+      <h3>Browser</h3>
+      <p>Use <strong>Chrome</strong> or <strong>Edge</strong> on a laptop or desktop. Firefox and Safari mostly work, but the course was tested in Chrome. The editor isn't designed for phones.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+<footer class="site-footer">
+  Built with <a href="https://p5js.org">p5.js</a> + p5.sound and <a href="https://codemirror.net/5/">CodeMirror</a>. Progress and code edits are stored only in this browser. ·
+  <a href="reference.html">Cheat sheet</a> · <a href="studio.html">Studio</a>
+</footer>
+
+<script src="assets/course.js"></script>
+<script>
+// Hero animation: a fake radial spectrum in plain canvas (no libraries).
+(function () {
+  const c = document.getElementById('hero-canvas');
+  const ctx = c.getContext('2d');
+  const N = 64;
+  const vals = new Array(N).fill(0);
+  let t = 0;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function frame() {
+    t += 1 / 60;
+    const beat = Math.pow(1 - ((t * 2) % 1), 3);  // 120 BPM pulse
+    ctx.fillStyle = 'rgba(8, 8, 12, 0.35)';
+    ctx.fillRect(0, 0, 600, 600);
+    ctx.save();
+    ctx.translate(300, 300);
+    ctx.rotate(t * 0.15);
+    for (let i = 0; i < N; i++) {
+      const target = 0.25 + 0.75 * Math.abs(Math.sin(i * 0.37 + t * 1.3) * Math.cos(i * 0.11 - t * 0.7)) * (i < 12 ? 0.6 + beat * 0.6 : 1);
+      vals[i] += (target - vals[i]) * 0.15;
+      const a = (i / N) * Math.PI * 2;
+      const len = 30 + vals[i] * 170;
+      const hue = 160 + (i / N) * 180;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = 'hsl(' + hue + ', 90%, 65%)';
+      ctx.fillRect(80 + beat * 10, -4, len, 8);
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, 50 + beat * 22, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff6fae';
+    ctx.fill();
+    ctx.restore();
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
+</body>
+</html>

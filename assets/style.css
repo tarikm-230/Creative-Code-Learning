@@ -309,3 +309,4 @@ tr.plan--late td { background: rgba(255, 107, 107, 0.08); }
   table.ref td:first-child { white-space: normal; }
 }
 .audio-bar__warn { flex-basis: 100%; color: var(--amber); font-size: 13.5px; }
+.hero__art canvas { width: 100%; height: 100%; display: block; }

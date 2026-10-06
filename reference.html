@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cheat Sheet — Creative Code in 48h</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-root=".">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta">Reference</p>
+  <h1>Cheat Sheet</h1>
+  <p class="lead">Everything from the course on one page. Keep it open in a second tab. For anything not listed here, see the full <a href="https://p5js.org/reference/">p5.js reference</a>.</p>
+
+  <h2>Sketch structure</h2>
+<pre class="snippet">let x = 0;                 // globals: keep their value between frames
+
+function preload() { }     // load files (sounds, images) — runs first
+function setup()   { }     // runs once: createCanvas, settings
+function draw()    { }     // runs ~60×/second
+
+function mousePressed() { }   function keyPressed() { }   function windowResized() { }</pre>
+
+  <h2>Canvas &amp; shapes</h2>
+  <table class="ref">
+    <tr><td><code>createCanvas(w, h)</code></td><td>Make the canvas. <code>createCanvas(windowWidth, windowHeight)</code> fills the window</td></tr>
+    <tr><td><code>resizeCanvas(w, h)</code></td><td>Change the size (use it in <code>windowResized</code>)</td></tr>
+    <tr><td><code>background(...)</code></td><td>Fill the whole canvas. Add alpha for trails</td></tr>
+    <tr><td><code>rect(x, y, w, h, [radius])</code> · <code>square</code></td><td>Rectangles. <code>rectMode(CENTER)</code> makes (x, y) the center</td></tr>
+    <tr><td><code>circle(x, y, d)</code> · <code>ellipse(x, y, w, h)</code></td><td>Circles and ovals (x, y is the center)</td></tr>
+    <tr><td><code>line(x1, y1, x2, y2)</code> · <code>point(x, y)</code></td><td>Lines and dots</td></tr>
+    <tr><td><code>triangle(...)</code> · <code>arc(x, y, w, h, a1, a2)</code></td><td>Triangles and pie slices</td></tr>
+    <tr><td><code>beginShape(); vertex(x, y); endShape(CLOSE);</code></td><td>Custom shapes, waveforms</td></tr>
+    <tr><td><code>text(str, x, y)</code> · <code>textSize(n)</code> · <code>textAlign(CENTER, CENTER)</code> · <code>textStyle(BOLD)</code></td><td>Text</td></tr>
+  </table>
+
+  <h2>Color &amp; style</h2>
+  <table class="ref">
+    <tr><td><code>fill(r, g, b, [a])</code> · <code>noFill()</code></td><td>Inside color</td></tr>
+    <tr><td><code>stroke(...)</code> · <code>noStroke()</code> · <code>strokeWeight(n)</code></td><td>Outline</td></tr>
+    <tr><td><code>colorMode(HSB)</code></td><td>Hue 0–360, saturation 0–100, brightness 0–100, alpha 0–1</td></tr>
+    <tr><td><code>fill('#ff6fae')</code></td><td>Web colors work too</td></tr>
+    <tr><td><code>(hue + 180) % 360</code></td><td>Opposite (complementary) hue, wrapping around the wheel</td></tr>
+    <tr><td><code>lerpColor(c1, c2, t)</code></td><td>Blend between two colors</td></tr>
+  </table>
+
+  <h2>Transformations</h2>
+  <table class="ref">
+    <tr><td><code>push()</code> … <code>pop()</code></td><td>Save, then restore, position, rotation and styles. Always use them in pairs</td></tr>
+    <tr><td><code>translate(x, y)</code></td><td>Move the origin</td></tr>
+    <tr><td><code>rotate(angle)</code></td><td>Rotate around the origin (radians: <code>TWO_PI</code> = full turn)</td></tr>
+    <tr><td><code>scale(s)</code> · <code>scale(1, -1)</code></td><td>Grow or shrink · mirror</td></tr>
+  </table>
+
+  <h2>Math &amp; motion</h2>
+  <table class="ref">
+    <tr><td><code>map(v, a1, b1, a2, b2, [true])</code></td><td>Convert from one range to another (<code>true</code> clamps the result)</td></tr>
+    <tr><td><code>constrain(v, min, max)</code></td><td>Keep a value within limits</td></tr>
+    <tr><td><code>lerp(a, b, t)</code></td><td>Mix between a and b. <code>x = lerp(x, target, 0.1)</code> eases toward a target</td></tr>
+    <tr><td><code>random(min, max)</code> · <code>randomSeed(n)</code></td><td>Random numbers · a repeatable random sequence</td></tr>
+    <tr><td><code>noise(x, [y], [z])</code></td><td>Smooth randomness, 0–1. Step the input slowly (0.005–0.02)</td></tr>
+    <tr><td><code>sin(a)</code> · <code>cos(a)</code></td><td>Waves from -1 to 1. A circle is <code>(cx + r·cos a, cy + r·sin a)</code></td></tr>
+    <tr><td><code>dist(x1, y1, x2, y2)</code></td><td>Distance between two points</td></tr>
+    <tr><td><code>floor</code> · <code>round</code> · <code>abs</code> · <code>min</code> · <code>max</code> · <code>pow</code></td><td>The usual helpers</td></tr>
+    <tr><td><code>a % b</code></td><td>Remainder, used for looping counters</td></tr>
+    <tr><td><code>frameCount</code> · <code>millis()</code> · <code>deltaTime</code></td><td>Time: frames, milliseconds since start, milliseconds since last frame</td></tr>
+  </table>
+
+  <h2>Input</h2>
+  <table class="ref">
+    <tr><td><code>mouseX</code>, <code>mouseY</code>, <code>mouseIsPressed</code></td><td>Mouse state</td></tr>
+    <tr><td><code>key</code>, <code>keyCode</code>, <code>keyIsPressed</code>, <code>keyIsDown(code)</code></td><td>Keyboard state. Codes include <code>LEFT_ARROW</code>, <code>UP_ARROW</code>, <code>ENTER</code>; letter <kbd>S</kbd> is 83</td></tr>
+    <tr><td><code>fullscreen(true/false)</code> · <code>noCursor()</code></td><td>Performance mode</td></tr>
+  </table>
+
+  <h2>JavaScript essentials</h2>
+<pre class="snippet">let n = 5;   const BPM = 120;           // variables / constants
+if (a &gt; b &amp;&amp; c) { } else if (d) { } else { }
+for (let i = 0; i &lt; 10; i++) { }        // count loop
+for (let item of list) { }             // loop over an array
+let list = [1, 2, 3];  list.push(4);  list.length;  list[0];  list.splice(i, 1);
+let obj = { x: 10, y: 20 };  obj.x;
+function name(param) { return param * 2; }
+class Thing { constructor(x) { this.x = x; } update() { this.x++; } }
+let t = new Thing(5);
+let label = 'beat ' + count;            // join text and numbers
+let v = cond ? a : b;                   // one-line if
+console.log(value);                     // print to the console</pre>
+
+  <h2>Sound (p5.sound)</h2>
+  <table class="ref">
+    <tr><td><code>song = loadSound(url)</code></td><td>In <code>preload()</code></td></tr>
+    <tr><td><code>userStartAudio()</code></td><td>Unlock audio. Call it in <code>mousePressed</code> (browser rule)</td></tr>
+    <tr><td><code>song.play()</code> <code>.loop()</code> <code>.pause()</code> <code>.stop()</code> <code>.isPlaying()</code></td><td>Playback</td></tr>
+    <tr><td><code>song.currentTime()</code> <code>.duration()</code> <code>.jump(sec)</code> <code>.setVolume(v)</code></td><td>Position and volume</td></tr>
+    <tr><td><code>amp = new p5.Amplitude()</code> · <code>amp.getLevel()</code></td><td>Loudness, 0 to about 0.4</td></tr>
+    <tr><td><code>fft = new p5.FFT(smoothing, bins)</code></td><td>Frequency analyzer (e.g. <code>0.8, 1024</code>)</td></tr>
+    <tr><td><code>fft.analyze()</code></td><td>Call once per frame. Returns the spectrum array (0–255)</td></tr>
+    <tr><td><code>fft.getEnergy('bass' | 'lowMid' | 'mid' | 'highMid' | 'treble')</code></td><td>One band, 0–255. Or a custom range: <code>getEnergy(40, 100)</code></td></tr>
+    <tr><td><code>fft.waveform()</code></td><td>Waveform array, -1 to 1</td></tr>
+    <tr><td><code>bands = fft.getOctaveBands(3)</code> · <code>fft.logAverages(bands)</code></td><td>Musical, log-spaced spectrum</td></tr>
+    <tr><td><code>mic = new p5.AudioIn(); mic.start(); fft.setInput(mic);</code></td><td>Live input (mic or line-in)</td></tr>
+  </table>
+
+  <h2>Audio-reactive recipes</h2>
+<pre class="snippet">// punchy smoothing (attack / release)
+v = target &gt; v ? lerp(v, target, 0.6) : lerp(v, target, 0.1);
+
+// auto-gain → 0..1
+peak = max(peak * 0.995, raw, 30);   let n = raw / peak;
+
+// beat detection
+avg = lerp(avg, bass, 0.05);
+if (bass &gt; avg * 1.25 &amp;&amp; bass &gt; 60 &amp;&amp; millis() - last &gt; 250) { last = millis(); /* BEAT */ }
+
+// kick envelope: set to 1 on beat, decays each frame
+if (beat) kick = 1;   kick *= 0.88;
+
+// edge detection (section change, drop)
+if (now !== before) { /* changed! */ }   before = now;
+
+// count bars and phrases
+let bar = floor(beats / 4);   let phrase = floor(beats / 32);</pre>
+
+  <h2>Which sound → which visual</h2>
+  <table class="ref">
+    <tr><th>Sound</th><th>Feels like</th><th>Map to</th></tr>
+    <tr><td>Kick / beat</td><td>Impact</td><td>Flashes, scale jumps, bursts, cuts</td></tr>
+    <tr><td>Bass</td><td>Weight</td><td>Size, thickness, camera shake, speed</td></tr>
+    <tr><td>Mids / vocals / pads</td><td>Emotion</td><td>Color, slow shape changes, brightness</td></tr>
+    <tr><td>Hi-hats / treble</td><td>Energy, air</td><td>Sparkle, texture, jitter, line detail</td></tr>
+    <tr><td>Sections (breakdown / drop)</td><td>Story</td><td>Scene changes, palette changes, big one-off events</td></tr>
+  </table>
+
+  <h2>Common errors</h2>
+  <table class="ref">
+    <tr><td><code>X is not defined</code></td><td>Typo, wrong capitalization, or a missing <code>let</code></td></tr>
+    <tr><td><code>Unexpected token / end of input</code></td><td>A bracket or comma is missing or extra</td></tr>
+    <tr><td>Nothing moves</td><td>You called <code>background()</code> in <code>setup()</code> but not <code>draw()</code>, or the variable is created inside <code>draw()</code>, so it resets every frame</td></tr>
+    <tr><td>No sound</td><td>Click the output first. Check the track bar. Check the system volume</td></tr>
+    <tr><td>Keys don't work</td><td>Click the output so it has focus</td></tr>
+    <tr><td>My function acts weird</td><td>Its name might clash with a p5 function (<code>hue</code>, <code>norm</code>, <code>color</code>…). Rename it</td></tr>
+    <tr><td>Everything is the same color</td><td><code>fill()</code> stays set until you change it. Use <code>push()</code>/<code>pop()</code></td></tr>
+  </table>
+</div>
+</main>
+<footer class="site-footer"><a href="index.html">← Back to the course</a></footer>
+<script src="assets/course.js"></script>
+</body>
+</html>

@@ -27,13 +27,13 @@
     { label: 'Block A — Foundations', items: ['00', '01', '02', '03'], hours: 3.5, kind: 'work' },
     { label: 'Break — eat, walk away from the screen', hours: 1, kind: 'rest' },
     { label: 'Block B — Foundations II', items: ['04', '05', '06'], hours: 4, kind: 'work' },
-    { label: 'Break — dinner', hours: 1, kind: 'rest' },
+    { label: 'Break — meal', hours: 1, kind: 'rest' },
     { label: 'Block C — Sound', items: ['07', '08', '09', '10'], hours: 5, kind: 'work' },
     { label: 'Sleep (your brain consolidates what you learned — don\'t skip it)', hours: 8, kind: 'sleep' },
     { label: 'Block D — Project 1: Song Portrait', items: ['P1'], hours: 5.5, kind: 'work' },
-    { label: 'Break — lunch', hours: 1, kind: 'rest' },
+    { label: 'Break — meal', hours: 1, kind: 'rest' },
     { label: 'Block E — Project 2: Setlist Engine', items: ['P2'], hours: 6.5, kind: 'work' },
-    { label: 'Break — dinner + show your DJ friend', hours: 1.5, kind: 'rest' },
+    { label: 'Break — meal + show your DJ friend', hours: 1.5, kind: 'rest' },
     { label: 'Block F — Capture & Portfolio', items: ['11'], hours: 2.5, kind: 'work' },
     { label: 'Sleep', hours: 6.5, kind: 'sleep' },
     { label: 'Buffer — polish, re-record, submit', hours: 2, kind: 'work' },
@@ -151,7 +151,7 @@
     const bar = document.getElementById('progress-bar');
     if (bar) {
       bar.querySelector('.progress__fill').style.width = ((doneMins / total) * 100).toFixed(1) + '%';
-      bar.querySelector('.progress__text').textContent = done.length + ' of ' + COURSE.length + ' steps complete · ' + fmtMins(total - doneMins) + ' of learning time left';
+      document.querySelector('.progress__text').textContent = done.length + ' of ' + COURSE.length + ' steps complete · ' + fmtMins(total - doneMins) + ' of learning time left';
     }
     const resume = document.getElementById('resume');
     if (resume) {
@@ -175,8 +175,21 @@
       const s = new Date(input.value);
       if (isNaN(s)) return;
       const p = progress();
+      // Auto-fit: if the full plan overruns the deadline, shrink breaks, sleep
+      // (never below 6 h) and the buffer — never the learning blocks.
+      const MIN = { rest: 0.5, sleep: 6 };
+      const plan = PLAN.map((b) => Object.assign({}, b, { min: b.label.startsWith('Buffer') ? 0.5 : (MIN[b.kind] || b.hours) }));
+      const avail = (DEADLINE - s) / 3600000;
+      const total = plan.reduce((x, b) => x + b.hours, 0);
+      const slackable = plan.reduce((x, b) => x + (b.hours - b.min), 0);
+      let compressed = false;
+      if (total > avail && slackable > 0) {
+        const k = Math.min(1, (total - avail) / slackable);
+        plan.forEach((b) => { b.hours = Math.round((b.hours - (b.hours - b.min) * k) * 4) / 4; });
+        compressed = true;
+      }
       let t = s.getTime();
-      const rows = PLAN.map((b) => {
+      const rows = plan.map((b) => {
         const from = new Date(t);
         t += b.hours * 3600000;
         const to = new Date(t);
@@ -193,8 +206,9 @@
       host.innerHTML = '<table class="plan"><tbody>' + rows.join('') + '</tbody></table>' +
         '<p class="plan__summary ' + (slack < 0 ? 'is-late' : '') + '">' +
         (slack >= 0
-          ? 'Plan finishes ' + end.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + ' — ' + slack.toFixed(1) + ' h before the deadline. 👍'
-          : 'This plan ends ' + (-slack).toFixed(1) + ' h after the deadline. Start earlier, shorten the sleep blocks a little (not below 6h), or trim Block F — rows in red run past noon on Oct 8.') +
+          ? (compressed ? 'You have less than 48 h, so breaks, sleep and buffer were shortened to fit (learning blocks unchanged). ' : '') +
+            'Plan finishes ' + end.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + ' — ' + slack.toFixed(1) + ' h before the deadline. 👍'
+          : 'Even with short breaks and 6 h of sleep, this plan ends ' + (-slack).toFixed(1) + ' h after the deadline (rows in red). Cut scope: skip the optional "Try this" items, use the project starters with lighter customization, and keep Block F short.') +
         '</p>';
     };
     input.addEventListener('change', () => { store.set('ccl-start', input.value); render(); });

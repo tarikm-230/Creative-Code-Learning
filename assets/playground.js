@@ -389,7 +389,7 @@
     const startScreen = usesAudio ? [
       '<div id="start">',
       '  <h1>' + safeTitle + '</h1>',
-      '  <p>Choose a track, or use the microphone / line-in.</p>',
+      '  <p>Choose a track (then click the screen to play), or use the microphone / line-in.</p>',
       '  <label class="b">Choose audio file…<input id="file" type="file" accept="audio/*" hidden></label>',
       '  <button class="b" id="live">Use mic / line-in</button>',
       '  <p class="s">Press F11 (Windows) or Ctrl+Cmd+F (Mac) for fullscreen.</p>',
