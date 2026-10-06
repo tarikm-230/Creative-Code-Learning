@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · Loops & Patterns — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="04" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Loops &amp; Patterns</h1>
+  <p class="lead">This is where creative coding pulls away from drawing by hand. One loop can draw a thousand shapes, and each one can be slightly different.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to use <code>for</code> loops to repeat with variation</li>
+      <li>How nested loops make grids</li>
+      <li>How <code>translate</code>, <code>rotate</code>, <code>push</code> and <code>pop</code> work, and how to use them to build radial patterns (mandalas, speaker cones, tunnels)</li>
+      <li>How to use <code>dist()</code> so every shape in a pattern can react on its own</li>
+    </ul>
+  </div>
+
+  <h2>The for loop</h2>
+<pre class="snippet">for (let i = 0; i &lt; 10; i++) {
+  // this runs 10 times, with i = 0, 1, 2 … 9
+}</pre>
+  <p>Read it as: "start <code>i</code> at 0. While <code>i &lt; 10</code>, run the block, then add 1 to <code>i</code> (<code>i++</code>)." The magic is that you can <strong>use <code>i</code> inside the block</strong> to change the position, size or color of each copy.</p>
+</div>
+
+<div class="pg wide" data-id="04-row" data-title="Repeat with variation">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(230, 40, 10);
+  noStroke();
+
+  let count = 12;
+  for (let i = 0; i < count; i++) {
+    let x = map(i, 0, count - 1, 30, width - 30);  // spread across the canvas
+    let size = 10 + i * 4;                          // each one bigger
+    fill(i * 25, 80, 100);                          // each one a new hue
+    circle(x, height / 2, size);
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Change <code>count</code> to 40.</li>
+      <li>Make the circles form a diagonal by also calculating a <code>y</code> from <code>i</code>.</li>
+      <li>Make them bounce like an equalizer: <code>let y = height / 2 + random(-50, 50);</code>. (It flickers, and we'll tame that in lesson 05.)</li>
+    </ol>
+  </div>
+
+  <h2>Grids: a loop inside a loop</h2>
+  <p>Put one loop inside another and you get rows <em>and</em> columns. With <code>dist(x1, y1, x2, y2)</code>, which measures the distance between two points, every cell can react to the mouse on its own:</p>
+</div>
+
+<div class="pg wide" data-id="04-grid" data-title="Reactive grid">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(0, 0, 6);
+  noStroke();
+
+  let cols = 10, rows = 10;
+  let cellW = width / cols, cellH = height / rows;
+
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      let x = c * cellW + cellW / 2;   // center of this cell
+      let y = r * cellH + cellH / 2;
+
+      let d = dist(x, y, mouseX, mouseY);
+      let size = map(d, 0, 250, cellW * 0.95, 4, true);   // close = big
+      let hue = map(d, 0, 300, 320, 180, true);
+
+      fill(hue, 80, 100);
+      circle(x, y, size);
+    }
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout callout--dj">
+    <strong>Hold that thought</strong>
+    Swap "distance to the mouse" for "how loud this frequency is" and this grid turns into a spectrum display. You'll do exactly that in lesson 08.
+  </div>
+
+  <h2>Moving the grid itself: translate, rotate, push, pop</h2>
+  <p>Up to now, (0, 0) has always been the top-left corner. <code>translate(x, y)</code> <strong>moves the origin</strong>, and <code>rotate(angle)</code> <strong>turns the whole coordinate system</strong> around that origin. Everything you draw afterwards is moved and turned too.</p>
+  <p><code>push()</code> saves the current position, rotation and styles. <code>pop()</code> restores them. Always use them in pairs, so one shape's rotation doesn't leak into the next.</p>
+  <p>Angles are in <strong>radians</strong>: a full turn is <code>TWO_PI</code> (about 6.28), and half a turn is <code>PI</code>. If you prefer degrees, call <code>angleMode(DEGREES)</code> in <code>setup()</code>.</p>
+</div>
+
+<div class="pg wide" data-id="04-radial" data-title="Radial pattern (speaker / mandala)">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(260, 50, 8);
+
+  translate(width / 2, height / 2);     // origin → center of canvas
+  rotate(frameCount * 0.005);           // slowly spin everything
+
+  let spokes = 24;
+  for (let i = 0; i < spokes; i++) {
+    push();
+    rotate(TWO_PI * i / spokes);        // turn to this spoke's angle
+
+    noStroke();
+    fill(300 + (i % 3) * 20, 70, 100);
+    rect(60, -4, 110, 8, 4);            // drawn "to the right", but rotated
+
+    fill(180, 60, 100);
+    circle(190, 0, 10);
+    pop();
+  }
+
+  // center
+  fill(0, 0, 100);
+  circle(0, 0, 50);                      // (0, 0) is now the center!
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Change <code>spokes</code> to 6, then 60.</li>
+      <li>Make every other spoke longer: <code>let len = (i % 2 === 0) ? 140 : 80;</code>, then use <code>len</code> as the rectangle's width. (<code>a ? b : c</code> is a one-line if: "if a, then b, otherwise c".)</li>
+      <li>Add a second ring that spins the <em>other</em> way: put a new <code>push()</code>, <code>rotate(-frameCount * 0.01)</code>, loop and <code>pop()</code> after the first loop.</li>
+    </ol>
+  </div>
+
+  <h2>Tunnels: loops plus scale</h2>
+  <p>Draw the same shape many times, each one smaller and slightly rotated, and you get a tunnel. This trick turns up all over club visuals.</p>
+</div>
+
+<div class="pg wide" data-id="04-tunnel" data-title="Square tunnel">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+  rectMode(CENTER);
+}
+
+function draw() {
+  background(0);
+  translate(width / 2, height / 2);
+  noFill();
+  strokeWeight(2);
+
+  let layers = 30;
+  for (let i = 0; i < layers; i++) {
+    let size = map(i, 0, layers, 560, 10);
+    push();
+    rotate(i * 0.08 + frameCount * 0.01);
+    stroke((i * 12 + frameCount) % 360, 80, 100);
+    square(0, 0, size);
+    pop();
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="challenge">
+    <h3>🔊 Challenge: Speaker wall (20 min)</h3>
+    <p>Make a <strong>4 × 3 grid of "speakers"</strong>. Each speaker is a set of concentric circles (a loop inside the grid loops, so three loops deep!). Then:</p>
+    <ul>
+      <li>The speaker closest to the mouse "pumps": its rings grow</li>
+      <li>Every speaker slowly rotates a little radial pattern in its center (use <code>push</code>, <code>translate</code> to the speaker's center, <code>rotate</code>, draw, <code>pop</code>)</li>
+    </ul>
+    <p class="muted">You'll reuse this idea in the projects. Each speaker will end up reacting to a different frequency band.</p>
+  </div>
+</div>
+
+<div class="pg wide" data-id="04-challenge" data-title="Challenge: speaker wall">
+<textarea>
+function setup() {
+  createCanvas(400, 300);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(0, 0, 8);
+
+  // your speaker wall here
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">function draw() {
+  background(0, 0, 8);
+  let cols = 4, rows = 3;
+  let cw = width / cols, ch = height / rows;
+
+  for (let c = 0; c &lt; cols; c++) {
+    for (let r = 0; r &lt; rows; r++) {
+      let x = c * cw + cw / 2;
+      let y = r * ch + ch / 2;
+      let d = dist(x, y, mouseX, mouseY);
+      let pump = map(d, 0, 150, 1.4, 1, true);
+
+      push();
+      translate(x, y);
+      noFill();
+      stroke(200, 40, 70);
+      for (let k = 1; k &lt;= 4; k++) {
+        circle(0, 0, k * 18 * pump);
+      }
+      rotate(frameCount * 0.02);
+      noStroke();
+      fill(320, 70, 100);
+      for (let s = 0; s &lt; 6; s++) {
+        rotate(TWO_PI / 6);
+        rect(4, -2, 10, 4);
+      }
+      pop();
+    }
+  }
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 · Scenes, Palettes & Going Live — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="10" data-root=".." data-audio data-live>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Scenes, Palettes &amp; Going Live</h1>
+  <p class="lead">So far, each sketch has been one idea. A live show needs several looks, a way to switch between them without stopping, live audio from the DJ mixer, and a full-screen output. This lesson gives you the structure that both projects are built on.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to make full-window canvases, go fullscreen, and handle <code>windowResized()</code></li>
+      <li>How to organize code: one <strong>audio engine</strong>, a shared <strong>state</strong>, many <strong>scenes</strong></li>
+      <li>How to use live input with <code>p5.AudioIn</code> (mic or line-in from the mixer)</li>
+      <li>How <strong>auto-gain</strong> keeps visuals working whether the input is quiet or loud</li>
+      <li>How to prepare for a gig: routing, performance and a backup plan</li>
+    </ul>
+  </div>
+
+  <h2>Fill the screen</h2>
+<pre class="snippet">function setup() {
+  createCanvas(windowWidth, windowHeight);   // as big as the window
+}
+
+function windowResized() {                    // p5 calls this when the window changes size
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function keyPressed() {
+  if (key === 'f') fullscreen(!fullscreen()); // toggle fullscreen (needs a key press or click)
+}</pre>
+  <p>From now on, position everything relative to <code>width</code> and <code>height</code> (for example <code>min(width, height) * 0.3</code> for a size) so your visual looks right on a laptop, a projector, or an LED wall with an unusual shape.</p>
+
+  <h2>The structure of a show</h2>
+  <p>When a sketch grows past about 100 lines, you need a structure. This one is used by professional tools and scales well:</p>
+  <svg class="diagram" viewBox="0 0 640 150" width="640" role="img" aria-label="Audio input flows into the audio engine, which fills a shared state object A, which every scene reads">
+    <g font-family="system-ui,sans-serif" font-size="13">
+      <rect x="5" y="45" width="130" height="60" rx="10" fill="#1f2330" stroke="#ff6fae"/>
+      <text x="70" y="70" fill="#e9ebf2" text-anchor="middle">Audio input</text><text x="70" y="88" fill="#9aa1b6" text-anchor="middle" font-size="11">file or line-in</text>
+      <rect x="175" y="45" width="130" height="60" rx="10" fill="#1f2330" stroke="#ffc861"/>
+      <text x="240" y="70" fill="#e9ebf2" text-anchor="middle">updateAudio()</text><text x="240" y="88" fill="#9aa1b6" text-anchor="middle" font-size="11">FFT, gain, beats</text>
+      <rect x="345" y="45" width="110" height="60" rx="10" fill="#1f2330" stroke="#7cf6c8"/>
+      <text x="400" y="70" fill="#e9ebf2" text-anchor="middle">object A</text><text x="400" y="88" fill="#9aa1b6" text-anchor="middle" font-size="11">bass, beat, wave…</text>
+      <rect x="495" y="5" width="140" height="36" rx="8" fill="#1f2330" stroke="#7fb3ff"/><text x="565" y="28" fill="#e9ebf2" text-anchor="middle">scene: Pulse</text>
+      <rect x="495" y="57" width="140" height="36" rx="8" fill="#1f2330" stroke="#7fb3ff"/><text x="565" y="80" fill="#e9ebf2" text-anchor="middle">scene: Tunnel</text>
+      <rect x="495" y="109" width="140" height="36" rx="8" fill="#1f2330" stroke="#7fb3ff"/><text x="565" y="132" fill="#e9ebf2" text-anchor="middle">scene: Scope</text>
+      <g stroke="#9aa1b6" stroke-width="2"><line x1="135" y1="75" x2="172" y2="75"/><line x1="305" y1="75" x2="342" y2="75"/><line x1="455" y1="75" x2="492" y2="23"/><line x1="455" y1="75" x2="492" y2="75"/><line x1="455" y1="75" x2="492" y2="127"/></g>
+    </g>
+  </svg>
+  <ul>
+    <li><strong>The audio engine</strong> runs once per frame. It analyzes the sound and writes clean, <strong>0–1 normalized</strong> values into one object, <code>A</code>.</li>
+    <li><strong>Scenes</strong> are just functions that draw using <code>A</code>. They know nothing about FFTs, so writing a new scene is easy and every scene reacts in a consistent way.</li>
+    <li><strong>Controls</strong> (keys) change the current scene, palette, blackout and so on.</li>
+  </ul>
+
+  <h2>Live input and auto-gain</h2>
+  <p><code>new p5.AudioIn()</code> listens to the computer's input. That's the built-in mic, or whatever is plugged into the line-in or an audio interface. Live levels are unpredictable: a quiet room, a loud club, a mixer turned up or down. <strong>Auto-gain</strong> fixes this. It remembers the recent <em>peak</em> of each band, which slowly decays, and divides by it. The result is that a value of <code>1</code> always means "as loud as it's been lately".</p>
+<pre class="snippet">function autoGain(name, value) {
+  peak[name] = max(peak[name] * 0.995, value, 30);  // slowly forget old peaks
+  return value / peak[name];                         // → roughly 0..1
+}</pre>
+
+  <p>Here's the full show template. Read it top to bottom. Everything in it comes from lessons 01–09.</p>
+  <div class="callout callout--tip">
+    <strong>Controls:</strong> click the output first, then press <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> for scenes, <kbd>P</kbd> for the next palette, <kbd>Space</kbd> for blackout, <kbd>F</kbd> for fullscreen and <kbd>H</kbd> to hide or show the info. Click to play or pause. Choose <strong>🎤 Mic / line-in</strong> in the track bar to try live input.
+  </div>
+</div>
+
+<div class="pg wide" data-id="10-show" data-title="Show template: engine + scenes" data-height="460" data-audio>
+<textarea>
+// ================= AUDIO ENGINE =================
+let song = null, mic = null, fft;
+let A = { bass: 0, mid: 0, treble: 0, level: 0, beat: false, beats: 0, kick: 0, wave: [] };
+let peak = { bass: 30, mid: 30, treble: 30 };
+let bassAvg = 0, lastBeat = 0;
+
+function preload() {
+  if (AUDIO_URL) song = loadSound(AUDIO_URL);   // no file → live input
+}
+
+function setupAudio() {
+  fft = new p5.FFT(0.6, 1024);
+  if (!song) {
+    mic = new p5.AudioIn();
+    mic.start();
+    fft.setInput(mic);
+  }
+}
+
+function follow(cur, target, attack, release) {
+  return target > cur ? lerp(cur, target, attack) : lerp(cur, target, release);
+}
+
+function autoGain(name, v) {
+  peak[name] = max(peak[name] * 0.995, v, 30);
+  return v / peak[name];
+}
+
+function updateAudio() {
+  fft.analyze();
+  let b = fft.getEnergy('bass'), m = fft.getEnergy('mid'), t = fft.getEnergy('treble');
+
+  A.bass = follow(A.bass, autoGain('bass', b), 0.6, 0.12);
+  A.mid = follow(A.mid, autoGain('mid', m), 0.4, 0.08);
+  A.treble = follow(A.treble, autoGain('treble', t), 0.7, 0.2);
+  A.level = (A.bass + A.mid + A.treble) / 3;
+
+  bassAvg = lerp(bassAvg, b, 0.05);
+  A.beat = b > bassAvg * 1.25 && b > 60 && millis() - lastBeat > 250;
+  if (A.beat) { lastBeat = millis(); A.beats++; A.kick = 1; }
+  A.kick *= 0.88;
+
+  A.wave = fft.waveform();
+}
+
+// ================= STATE & CONTROLS =================
+const PALETTES = [
+  [330, 20, 190],   // hot pink, orange, cyan
+  [200, 260, 170],  // ice blue, violet, mint
+  [40, 10, 350],    // gold, red, rose
+];
+let pal = 0, scene = 0, blackout = false, showHud = true, flash = 0;
+
+function palHue(i) { return PALETTES[pal][i % 3]; }
+
+function keyPressed() {
+  if (key >= '1' && key <= String(SCENES.length)) { scene = int(key) - 1; flash = 1; }
+  if (key === 'p' || key === 'P') pal = (pal + 1) % PALETTES.length;
+  if (key === ' ') blackout = !blackout;
+  if (key === 'h' || key === 'H') showHud = !showHud;
+  if (key === 'f' || key === 'F') fullscreen(!fullscreen());
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song) { if (song.isPlaying()) song.pause(); else song.loop(); }
+}
+
+// ================= SCENES =================
+function scenePulse() {
+  background(palHue(0), 70, 8 + A.kick * 20);
+  let s = min(width, height);
+  noStroke();
+  fill(palHue(1), 80, 100, 0.25);
+  circle(width / 2, height / 2, s * (0.5 + A.mid * 0.4));
+  fill(palHue(0), 80, 100);
+  circle(width / 2, height / 2, s * (0.15 + A.bass * 0.35));
+}
+
+function sceneTunnel() {
+  background(0, 0, 0, 0.3);
+  translate(width / 2, height / 2);
+  rectMode(CENTER);
+  noFill();
+  let s = max(width, height) * 1.3;
+  for (let i = 0; i < 24; i++) {
+    push();
+    rotate(i * 0.12 + frameCount * 0.005 * (1 + A.mid * 4));
+    stroke(palHue(i % 3), 80, 100, 0.4 + A.treble * 0.6);
+    strokeWeight(1 + A.kick * 4);
+    square(0, 0, s * pow(0.85, i) * (1 + A.bass * 0.15));
+    pop();
+  }
+}
+
+function sceneScope() {
+  background(palHue(2), 60, 6, 0.4);
+  noFill();
+  for (let k = 0; k < 3; k++) {
+    stroke(palHue(k), 80, 100);
+    strokeWeight(2 + A.kick * 3);
+    beginShape();
+    for (let i = 0; i < A.wave.length; i += 8) {
+      let x = map(i, 0, A.wave.length, 0, width);
+      let y = height * (0.3 + k * 0.2) + A.wave[i] * height * 0.25 * (1 + A.bass);
+      vertex(x, y);
+    }
+    endShape();
+  }
+}
+
+const SCENES = [
+  { name: 'Pulse', draw: scenePulse },
+  { name: 'Tunnel', draw: sceneTunnel },
+  { name: 'Scope', draw: sceneScope },
+];
+
+// ================= MAIN =================
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB);
+  setupAudio();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function draw() {
+  updateAudio();
+
+  push();
+  SCENES[scene].draw();
+  pop();
+
+  if (flash > 0.01) { background(0, 0, 100, flash); flash *= 0.85; }
+  if (blackout) background(0);
+
+  if (showHud) {
+    noStroke();
+    fill(0, 0, 100);
+    textSize(12);
+    let src = song ? (song.isPlaying() ? 'file ▶' : 'file ❚❚ (click)') : 'LIVE INPUT';
+    text(SCENES[scene].name + ' · palette ' + (pal + 1) + ' · ' + src + ' · beats ' + A.beats +
+         '   [1-3 scene · P palette · space blackout · F fullscreen · H hide]', 10, height - 10);
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Press <strong>⛶</strong> on the playground, or <kbd>F</kbd> inside it, to see it fullscreen.</li>
+      <li>Add a 4th palette to <code>PALETTES</code>. No other changes are needed.</li>
+      <li>Choose <strong>🎤 Mic / line-in</strong> in the track bar and play music from your phone near the laptop. Watch auto-gain adapt within a few seconds.</li>
+    </ol>
+  </div>
+
+  <h2>Adding a scene takes three steps</h2>
+  <ol>
+    <li>Write a function, for example <code>function sceneStars() { … }</code>, that draws using <code>A.bass</code>, <code>A.kick</code>, <code>palHue(0)</code> and so on</li>
+    <li>Add it to the list: <code>{ name: 'Stars', draw: sceneStars }</code></li>
+    <li>Press <kbd>4</kbd></li>
+  </ol>
+  <p>Each scene starts with a <code>push()</code> and ends with a <code>pop()</code> (handled in <code>draw()</code>), so a <code>translate</code> or <code>rectMode</code> in one scene can't break another.</p>
+
+  <div class="callout callout--dj">
+    <strong>Gig setup: getting the music into the laptop</strong>
+    <ul>
+      <li><strong>Best: line-in from the mixer.</strong> Most DJ mixers have a <em>Booth</em> or <em>Rec/Record out</em>. Run a cable from it into a cheap USB audio interface (e.g. Behringer UCA202 or Focusrite Scarlett Solo), and select that interface as the computer's input. The signal is clean, with no crowd noise.</li>
+      <li><strong>Good enough: the laptop mic.</strong> Thanks to auto-gain, the bass and beats will still work in a loud room. Highs will be noisier.</li>
+      <li><strong>If the DJ plays from a laptop:</strong> you can't easily capture its audio on a <em>different</em> computer without a cable. Use the mixer out.</li>
+      <li>The browser asks for microphone permission the first time. Allow it, and pick the right device from the camera/mic icon in the address bar.</li>
+    </ul>
+  </div>
+
+  <div class="callout callout--warn">
+    <strong>Performance checklist</strong>
+    <ul>
+      <li>Add <code>pixelDensity(1)</code> in <code>setup()</code>. On high-resolution (Retina or 4K) screens it can double your frame rate. Projectors don't need the extra pixels.</li>
+      <li>Watch <code>frameRate()</code>: print <code>round(frameRate())</code> in the HUD. Stay above 50.</li>
+      <li>Cap particle counts. Lots of transparency plus thousands of shapes will slow things down.</li>
+      <li>Use Chrome, close other tabs, plug the laptop into power, and turn off sleep and notifications.</li>
+      <li>Projector: use extended display, drag the browser window onto it, then press <kbd>F</kbd>. Add <code>noCursor()</code> to hide the mouse.</li>
+      <li>Always know your <strong>blackout key</strong>. If something breaks, black is a valid VJ choice.</li>
+    </ul>
+  </div>
+
+  <div class="challenge">
+    <h3>🎬 Challenge: Make the show yours (30 min)</h3>
+    <ul>
+      <li>Add <strong>two scenes</strong> of your own, adapted from your earlier challenges. The starfield (06) and Unknown Pleasures (05) make great scenes. Replace the mouse with <code>A</code> values</li>
+      <li>Give at least one of them a <strong>beat event</strong> using <code>A.beat</code></li>
+      <li>Add a <code>pixelDensity(1)</code> and an FPS readout to the HUD</li>
+      <li><strong>⤓ Export</strong> it, open the downloaded file, and try both "Choose audio file…" and "Use mic / line-in"</li>
+    </ul>
+    <p class="muted">Edit the show template above directly. Your changes are saved automatically. You'll keep building on it in the Setlist Engine.</p>
+  </div>
+
+  <details class="solution">
+    <summary>Show an example scene (starfield, driven by the music)</summary>
+<pre class="snippet">let stars = [];
+
+function sceneStars() {
+  if (stars.length === 0) {
+    for (let i = 0; i &lt; 500; i++) stars.push({ x: random(-1, 1), y: random(-1, 1), z: random(1) });
+  }
+  background(0, 0, 0, 0.5);
+  translate(width / 2, height / 2);
+  let speed = 0.004 + A.bass * 0.02 + A.kick * 0.03;   // kicks = warp jumps
+  noStroke();
+  for (let s of stars) {
+    s.z -= speed;
+    if (s.z &lt;= 0.01) { s.x = random(-1, 1); s.y = random(-1, 1); s.z = 1; }
+    let sx = s.x / s.z * width * 0.5;
+    let sy = s.y / s.z * height * 0.5;
+    fill(palHue(floor(abs(s.x) * 3)), 40, 100);
+    circle(sx, sy, (1 - s.z) * 6 * (1 + A.treble));
+  }
+}
+
+// and in SCENES:  { name: 'Stars', draw: sceneStars },</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

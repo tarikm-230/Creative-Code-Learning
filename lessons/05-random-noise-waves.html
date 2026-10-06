@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 · Randomness, Noise & Waves — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="05" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Randomness, Noise &amp; Waves</h1>
+  <p class="lead">Things that move with perfectly steady speed look like machines. Things that drift, wobble and breathe look alive. This lesson covers the three tools that make the difference.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How <code>random()</code> works, and when it's the wrong tool</li>
+      <li>How <code>noise()</code> (Perlin noise) gives you smooth, organic randomness</li>
+      <li>How <code>sin()</code> and <code>cos()</code> make waves, pulses and orbits</li>
+      <li>How to draw custom shapes with <code>beginShape()</code> and <code>vertex()</code>, which you'll need for waveforms</li>
+    </ul>
+  </div>
+
+  <h2>random()</h2>
+  <p><code>random(min, max)</code> gives you a different number every time you call it. If you call it inside <code>draw()</code>, things <strong>flicker</strong>, because they get a new value 60 times a second. That's great for glitch and strobe effects, and bad for anything that should feel smooth.</p>
+  <p>A useful trick: <code>randomSeed(42)</code> makes the "random" numbers come out the same every frame (and every time you run the sketch). That gives you a stable random layout.</p>
+</div>
+
+<div class="pg wide" data-id="05-random" data-title="random(): glitch vs stable">
+<textarea>
+let glitch = true;
+
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(0, 0, 5);
+
+  if (!glitch) randomSeed(7);   // same numbers every frame = stable
+
+  noStroke();
+  for (let i = 0; i < 40; i++) {
+    fill(random(280, 340), 80, 100, 0.8);
+    rect(random(width), random(height), random(10, 80), random(2, 10));
+  }
+
+  fill(0, 0, 100);
+  text('click to toggle glitch: ' + glitch, 10, 390);
+}
+
+function mousePressed() {
+  glitch = !glitch;
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>noise(): randomness with memory</h2>
+  <p><code>noise(t)</code> returns a value between 0 and 1. Unlike <code>random()</code>, <strong>nearby inputs give nearby outputs</strong>. If you slowly increase <code>t</code>, the value drifts smoothly up and down, like a hand-drawn line. This is the most-used function in generative art.</p>
+  <ul>
+    <li>Move <code>t</code> by a small step each frame (0.005–0.02). Small steps give slow drift, big steps give a jittery wobble.</li>
+    <li>Use different "offsets", like <code>noise(t)</code> and <code>noise(t + 1000)</code>, to get separate, independent wanderers.</li>
+    <li>2D and 3D noise also exist: <code>noise(x, y)</code> and <code>noise(x, y, t)</code>.</li>
+  </ul>
+</div>
+
+<div class="pg wide" data-id="05-noise" data-title="random vs noise">
+<textarea>
+let t = 0;
+
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(15, 15, 25, 40);
+  noStroke();
+
+  // LEFT: random → jumps around
+  fill(255, 111, 174);
+  circle(random(20, 180), random(100, 300), 30);
+
+  // RIGHT: noise → wanders smoothly
+  let nx = noise(t);          // 0..1
+  let ny = noise(t + 1000);   // different offset = different path
+  fill(124, 246, 200);
+  circle(map(nx, 0, 1, 220, 380), map(ny, 0, 1, 100, 300), 30);
+
+  t += 0.01;                  // try 0.002 and 0.1
+
+  stroke(60);
+  line(200, 0, 200, height);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>sin() and cos(): waves</h2>
+  <p><code>sin(angle)</code> moves smoothly between <strong>-1 and 1</strong> as the angle grows. Feed it a growing number like <code>frameCount * 0.05</code> and you get endless, perfectly even motion: breathing, swinging, pulsing. The recipe is always the same:</p>
+<pre class="snippet">center + amplitude * sin(time * speed)
+
+let size = 100 + 50 * sin(frameCount * 0.05);   // 50 … 150, breathing</pre>
+  <p><code>cos()</code> is the same wave, shifted. Using <code>cos</code> for x and <code>sin</code> for y moves a point around a <strong>circle</strong>:</p>
+<pre class="snippet">x = cx + r * cos(angle);
+y = cy + r * sin(angle);</pre>
+</div>
+
+<div class="pg wide" data-id="05-waves" data-title="Waves, pulses & orbits">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(230, 50, 10);
+  let t = frameCount * 0.03;
+  noStroke();
+
+  // 1. breathing circle
+  let size = 120 + 60 * sin(t);
+  fill(320, 60, 100, 0.5);
+  circle(width / 2, height / 2, size);
+
+  // 2. orbiting planets
+  for (let i = 0; i < 8; i++) {
+    let angle = t + TWO_PI * i / 8;
+    let x = width / 2 + 140 * cos(angle);
+    let y = height / 2 + 140 * sin(angle);
+    fill(170 + i * 10, 70, 100);
+    circle(x, y, 18);
+  }
+
+  // 3. a wave of dots (each dot is a bit "later" in the wave)
+  for (let x = 0; x <= width; x += 10) {
+    let y = 40 + 20 * sin(t * 2 + x * 0.04);
+    fill(50, 80, 100);
+    circle(x, y, 6);
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>Custom shapes: beginShape() and vertex()</h2>
+  <p>To draw a shape that isn't a rectangle or circle, like a waveform or a blob, list its corners as <strong>vertices</strong>. Combine that with a loop and noise and you get organic forms:</p>
+</div>
+
+<div class="pg wide" data-id="05-blob" data-title="Noise blob">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(260, 50, 8);
+  translate(width / 2, height / 2);
+
+  let t = frameCount * 0.01;
+
+  fill(300, 70, 100, 0.8);
+  noStroke();
+  beginShape();
+  for (let a = 0; a < TWO_PI; a += 0.05) {
+    // radius wobbles with 2D noise: depends on angle AND time
+    let r = 120 + 60 * noise(cos(a) + 1, sin(a) + 1, t);
+    vertex(r * cos(a), r * sin(a));
+  }
+  endShape(CLOSE);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Change <code>60 * noise(...)</code> to <code>150 * noise(...)</code>. The blob gets wilder.</li>
+      <li>Change <code>cos(a) + 1</code> to <code>2 * cos(a) + 1</code> (and the same for <code>sin</code>). This is "noise zoom": bigger numbers mean more bumps.</li>
+      <li>Replace <code>noFill</code>/<code>fill</code> with <code>noFill(); stroke(0, 0, 100);</code> for a line-art look.</li>
+    </ol>
+  </div>
+
+  <h2>lerp(): easing toward a target</h2>
+  <p><code>lerp(a, b, amount)</code> finds a point between a and b. Its best use is this pattern, which you'll lean on heavily in lesson 09 to smooth jumpy audio values:</p>
+<pre class="snippet">current = lerp(current, target, 0.1);  // move 10% of the way there, every frame</pre>
+  <p>It creates natural ease-out motion: fast at first, then slowing as it arrives. <code>lerpColor(c1, c2, amount)</code> does the same for colors.</p>
+
+  <div class="challenge">
+    <h3>📈 Challenge: "Unknown Pleasures" (25 min)</h3>
+    <p>Recreate the famous Joy Division album cover style: <strong>stacked horizontal lines</strong>, each one a wavy mountain range that moves over time.</p>
+    <ul>
+      <li>Loop over about 30 rows. For each row, <code>beginShape()</code>, then loop x across the canvas and add <code>vertex(x, y)</code></li>
+      <li>Each point's height comes from <code>noise(x * 0.02, row * 0.3, t)</code></li>
+      <li>Make the bumps tallest in the <strong>middle</strong> of the canvas. Hint: multiply by something that's big at the center and small at the edges, like <code>map(abs(x - width/2), 0, width/2, 1, 0)</code></li>
+      <li>Use <code>fill(0)</code> with a white stroke so each row hides the rows behind it</li>
+    </ul>
+    <p class="muted">This is basically a 3D audio spectrogram. Later you can drive the height with real frequency data.</p>
+  </div>
+</div>
+
+<div class="pg wide" data-id="05-challenge" data-title="Challenge: unknown pleasures">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(0);
+  let t = frameCount * 0.01;
+
+  // your stacked waves here
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">function draw() {
+  background(0);
+  let t = frameCount * 0.01;
+  stroke(255);
+  strokeWeight(1.5);
+  fill(0);
+
+  for (let row = 0; row &lt; 30; row++) {
+    let baseY = 70 + row * 10;
+    beginShape();
+    for (let x = 40; x &lt;= width - 40; x += 4) {
+      let centerness = map(abs(x - width / 2), 0, width / 2 - 40, 1, 0);
+      centerness = centerness * centerness;      // squared = sharper peak
+      let h = noise(x * 0.02, row * 0.3, t) * 80 * centerness;
+      vertex(x, baseY - h);
+    }
+    endShape();
+  }
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio — Creative Code in 48h</title>
+<link rel="stylesheet" href="vendor/codemirror.css">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .studio-bar { max-width: 1320px; margin: 20px auto 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .studio-bar select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font: 14px var(--sans); }
+  .studio .pg__code .CodeMirror { max-height: 78vh; min-height: 60vh; }
+</style>
+</head>
+<body data-root="." data-audio data-live>
+<header class="topbar" id="topbar"></header>
+<main class="lesson studio">
+<div id="audio-bar-slot"></div>
+<div class="studio-bar">
+  <strong>Studio</strong>
+  <span class="muted">A free sketchpad. Your code is saved in this browser.</span>
+  <span style="flex:1"></span>
+  <label class="muted" for="tpl">Start from:</label>
+  <select id="tpl">
+    <option value="">— choose a template —</option>
+    <option value="blank">Blank sketch</option>
+    <option value="audio">Audio-reactive starter</option>
+    <option value="live">Live show starter (file or mic)</option>
+  </select>
+</div>
+<div class="pg wide" data-id="studio" data-title="Studio" data-height="560">
+<textarea>
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(260, 40, 8);
+  // make something!
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</textarea>
+</div>
+</main>
+<script src="vendor/codemirror.bundle.js"></script>
+<script src="assets/demo-audio.js"></script>
+<script src="assets/course.js"></script>
+<script src="assets/playground.js"></script>
+<script>
+  const TEMPLATES = {
+    blank: `function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(260, 40, 8);
+  // make something!
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+`,
+    audio: `let song, fft;
+
+function preload() {
+  song = loadSound(AUDIO_URL);   // the track chosen in the bar above
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB);
+  fft = new p5.FFT(0.8, 1024);
+}
+
+function draw() {
+  fft.analyze();
+  let bass = fft.getEnergy('bass');
+  let mid = fft.getEnergy('mid');
+  let treble = fft.getEnergy('treble');
+
+  background(260, 40, 8);
+  noStroke();
+  fill(map(mid, 0, 255, 200, 340), 80, 100);
+  circle(width / 2, height / 2, map(bass, 0, 255, 20, min(width, height)));
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+`,
+    live: `// Works with a file (track bar) or live input (choose "Mic / line-in")
+let song = null, mic = null, fft;
+let A = { bass: 0, mid: 0, treble: 0, beat: false, beats: 0, kick: 0, wave: [] };
+let peak = { bass: 30, mid: 30, treble: 30 };
+let bassAvg = 0, lastBeat = 0;
+
+function preload() {
+  if (AUDIO_URL) song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  colorMode(HSB);
+  fft = new p5.FFT(0.6, 1024);
+  if (!song) { mic = new p5.AudioIn(); mic.start(); fft.setInput(mic); }
+}
+
+function follow(cur, target, attack, release) {
+  return target > cur ? lerp(cur, target, attack) : lerp(cur, target, release);
+}
+
+function autoGain(name, v) {
+  peak[name] = max(peak[name] * 0.995, v, 30);
+  return v / peak[name];
+}
+
+function updateAudio() {
+  fft.analyze();
+  let b = fft.getEnergy('bass'), m = fft.getEnergy('mid'), t = fft.getEnergy('treble');
+  A.bass = follow(A.bass, autoGain('bass', b), 0.6, 0.12);
+  A.mid = follow(A.mid, autoGain('mid', m), 0.4, 0.08);
+  A.treble = follow(A.treble, autoGain('treble', t), 0.7, 0.2);
+  bassAvg = lerp(bassAvg, b, 0.05);
+  A.beat = b > bassAvg * 1.25 && b > 60 && millis() - lastBeat > 250;
+  if (A.beat) { lastBeat = millis(); A.beats++; A.kick = 1; }
+  A.kick *= 0.88;
+  A.wave = fft.waveform();
+}
+
+function draw() {
+  updateAudio();
+  background(260, 50, 6 + A.kick * 15);
+  noStroke();
+  fill(320, 80, 100);
+  circle(width / 2, height / 2, min(width, height) * (0.1 + A.bass * 0.4));
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song) { if (song.isPlaying()) song.pause(); else song.loop(); }
+}
+
+function keyPressed() {
+  if (key === 'f' || key === 'F') fullscreen(!fullscreen());
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+`,
+  };
+  document.getElementById('tpl').addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (!v) return;
+    if (confirm('Replace the code in the Studio with the "' + e.target.selectedOptions[0].text + '" template?')) {
+      const pg = window.CCL_PLAYGROUNDS[0];
+      pg.cm.setValue(TEMPLATES[v]);
+      pg.run();
+    }
+    e.target.value = '';
+  });
+</script>
+</body>
+</html>

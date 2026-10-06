@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 · Variables & Motion — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="02" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Variables &amp; Motion</h1>
+  <p class="lead">A drawing becomes an animation when its numbers change over time. Variables are how you store those changing numbers.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to create and update variables with <code>let</code></li>
+      <li>How <code>draw()</code> works as a 60-frames-per-second loop</li>
+      <li>How to use <code>frameCount</code>, <code>%</code> (remainder) and <code>millis()</code> for timing</li>
+      <li>How to make motion trails with a see-through background, a classic VJ look</li>
+    </ul>
+  </div>
+
+  <h2>Variables are labeled boxes</h2>
+  <p>A <strong>variable</strong> is a name that holds a value. You create one with <code>let</code>:</p>
+<pre class="snippet">let size = 80;        // create a box called "size" holding 80
+size = size + 10;     // take what's in the box, add 10, put it back → 90
+circle(200, 200, size);</pre>
+  <p>Where you create the variable matters:</p>
+  <ul>
+    <li>Create it <strong>at the top, outside any function</strong>, and it's a <em>global</em>: it keeps its value between frames. Use these for anything that changes over time, like position, speed or score.</li>
+    <li>Create it <strong>inside <code>draw()</code></strong> and it's made fresh on every frame. Use these for temporary calculations.</li>
+  </ul>
+  <p>Use <code>const</code> instead of <code>let</code> for values that never change, like <code>const BPM = 120;</code>.</p>
+
+  <h2>Your first animation</h2>
+  <p>Remember that <code>draw()</code> runs about 60 times per second. If you add a little to <code>x</code> on every frame, the circle moves:</p>
+</div>
+
+<div class="pg wide" data-id="02-move" data-title="Moving circle">
+<textarea>
+let x = 0;       // global: survives between frames
+let speed = 3;
+
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(20, 20, 30);
+
+  fill(255, 111, 174);
+  noStroke();
+  circle(x, height / 2, 60);
+
+  x = x + speed;   // move a little every frame
+
+  // when it leaves the right edge, send it back to the left
+  // ("if" gets explained properly in the next lesson)
+  if (x > width + 30) {
+    x = -30;
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Make it faster or slower by changing <code>speed</code>.</li>
+      <li>Add <code>let y = 0;</code> at the top and make the circle move diagonally.</li>
+      <li>Make the circle <strong>grow</strong> as it moves: use <code>x / 4</code> as its diameter.</li>
+      <li>Shorthand: <code>x += speed</code> means exactly the same as <code>x = x + speed</code>. Try it.</li>
+    </ol>
+  </div>
+
+  <h2>Built-in variables</h2>
+  <p>p5 keeps some variables updated for you:</p>
+  <table class="ref">
+    <tr><th>Variable</th><th>Holds</th></tr>
+    <tr><td><code>width</code>, <code>height</code></td><td>The canvas size</td></tr>
+    <tr><td><code>mouseX</code>, <code>mouseY</code></td><td>The current mouse position</td></tr>
+    <tr><td><code>frameCount</code></td><td>How many frames have been drawn so far: 1, 2, 3…</td></tr>
+    <tr><td><code>millis()</code></td><td>Milliseconds since the sketch started (a function, so use the brackets)</td></tr>
+    <tr><td><code>deltaTime</code></td><td>Milliseconds since the last frame (useful for smooth timing)</td></tr>
+  </table>
+
+  <h2>Trails: the oldest trick in VJing</h2>
+  <p>If you call <code>background()</code> with a <strong>transparent</strong> color, the previous frame doesn't fully disappear. Moving things leave ghostly trails. Lower alpha means longer trails.</p>
+</div>
+
+<div class="pg wide" data-id="02-trails" data-title="Motion trails">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  background(0);
+}
+
+function draw() {
+  // black at alpha 20: old frames fade out slowly
+  background(0, 0, 0, 20);
+
+  // frameCount keeps growing, so the hue cycles through colors
+  colorMode(HSB);
+  fill(frameCount % 360, 80, 100);
+  noStroke();
+
+  circle(mouseX, mouseY, 40);
+
+  colorMode(RGB); // switch back so background() above means RGB
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Change the background alpha from <code>20</code> to <code>5</code>, then to <code>80</code>.</li>
+      <li>What does <code>frameCount % 360</code> do? <code>%</code> gives the <em>remainder</em>: 361 % 360 = 1, so the number counts 0 → 359 and then starts over. That keeps the hue looping forever.</li>
+    </ol>
+  </div>
+
+  <h2>Timing to music: frames and beats</h2>
+  <p>Now let's connect motion to music. At 60 frames per second and <strong>120 BPM</strong> there are 2 beats per second, so a beat lasts <strong>30 frames</strong>. <code>frameCount % 30</code> counts 0 → 29 over and over, once per beat.</p>
+  <p>Frames aren't perfectly reliable, though, because a slow computer might only manage 45 fps. <code>millis()</code> is based on real time, so it's better for anything that has to stay in sync. One beat at a given BPM lasts <code>60000 / BPM</code> milliseconds.</p>
+</div>
+
+<div class="pg wide" data-id="02-metronome" data-title="Visual metronome (120 BPM)">
+<textarea>
+const BPM = 120;
+const beatMs = 60000 / BPM;   // 500 ms per beat
+
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(10);
+
+  // where are we inside the current beat? 0.0 at the start → almost 1.0 at the end
+  let phase = (millis() % beatMs) / beatMs;
+
+  // which beat is it? 0, 1, 2, 3, 0, 1, 2, 3 ...
+  let beatNumber = floor(millis() / beatMs) % 4;
+
+  // the pulse is big at the start of the beat and shrinks during it
+  let size = 300 * (1 - phase);
+
+  noStroke();
+  if (beatNumber === 0) {
+    fill(255, 111, 174);   // the "one" of every bar is pink
+  } else {
+    fill(124, 246, 200);
+  }
+  circle(width / 2, height / 2, size);
+
+  fill(255);
+  textSize(18);
+  textAlign(CENTER);
+  text('beat ' + (beatNumber + 1) + ' of 4', width / 2, height - 30);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <p>Look at <code>'beat ' + (beatNumber + 1)</code>. Text in quotes is called a <strong>string</strong>, and <code>+</code> joins strings with numbers. <code>text(string, x, y)</code> draws it on the canvas, which is useful for debugging. So is <code>console.log(value)</code>, which prints to the console under the output.</p>
+
+  <div class="callout callout--dj">
+    <strong>DJ connection</strong>
+    This is how you'd sync visuals to a tempo you already know. It doesn't listen to the music yet. It just keeps time like a metronome. In lesson 09 you'll detect real beats from the audio, and in the Setlist Engine you'll combine both with a "tap tempo" key.
+  </div>
+
+  <div class="challenge">
+    <h3>⏱ Challenge: Four-on-the-floor (15 min)</h3>
+    <p>Change the metronome so that:</p>
+    <ul>
+      <li>There are <strong>4 squares in a row</strong>, one per beat of the bar, and the current beat's square lights up</li>
+      <li>The whole background briefly flashes on beat 1</li>
+      <li>Bonus: change <code>BPM</code> to 128 (typical house tempo) and check that it still works</li>
+    </ul>
+    <p class="muted">Hint: draw 4 squares at x = 50, 140, 230 and 320. For each one, use a bright fill if <code>beatNumber</code> matches its position and a dim fill if it doesn't. Copy-pasting four <code>if</code> blocks is completely fine for now. Lesson 04 will show you a shortcut.</p>
+  </div>
+</div>
+
+<div class="pg wide" data-id="02-challenge" data-title="Challenge: four-on-the-floor">
+<textarea>
+const BPM = 120;
+const beatMs = 60000 / BPM;
+
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  let phase = (millis() % beatMs) / beatMs;
+  let beatNumber = floor(millis() / beatMs) % 4;
+
+  background(10);
+
+  // your four squares here
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">function draw() {
+  let phase = (millis() % beatMs) / beatMs;
+  let beatNumber = floor(millis() / beatMs) % 4;
+
+  // flash on the one: bright at the start of beat 1, fading quickly
+  if (beatNumber === 0) {
+    background(255 * (1 - phase) * 0.6);
+  } else {
+    background(10);
+  }
+
+  noStroke();
+  rectMode(CENTER);
+
+  if (beatNumber === 0) { fill(255, 111, 174); } else { fill(50); }
+  square(65, 200, 70);
+  if (beatNumber === 1) { fill(124, 246, 200); } else { fill(50); }
+  square(155, 200, 70);
+  if (beatNumber === 2) { fill(124, 246, 200); } else { fill(50); }
+  square(245, 200, 70);
+  if (beatNumber === 3) { fill(124, 246, 200); } else { fill(50); }
+  square(335, 200, 70);
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

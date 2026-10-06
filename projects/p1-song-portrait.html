@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 1 · Song Portrait — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="P1" data-root=".." data-audio>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Project 1 — Song Portrait</h1>
+  <p class="lead">A visual made for <strong>one specific track</strong>. It knows where the intro, build, breakdown and drop are, and it changes with them. It plays start to finish like a music video that's generated live by code.</p>
+
+  <div class="goals">
+    <h3>The brief</h3>
+    <ul>
+      <li>Pick one track your DJ friend loves to play (ideally one with a clear breakdown and drop)</li>
+      <li>Build a full-screen visual with <strong>three layers</strong>: base (slow mood), rhythm (beats) and detail (highs and texture)</li>
+      <li>It must <strong>follow the song's structure</strong>: each section looks clearly different, and the drop is the visual peak</li>
+      <li>Add a title card at the start and a fade to black at the end</li>
+      <li>Deliverable: a 30–90 second screen recording plus the exported HTML (lesson 11)</li>
+    </ul>
+  </div>
+
+  <div class="callout callout--tip">
+    <strong>Time budget: about 5½ hours</strong>
+    Work through the milestones in order and tick them off. They're saved in this browser. If you fall behind, <em>skip the optional items, not the milestones</em>. A simple portrait that follows the structure beats a complex one that doesn't.
+  </div>
+
+  <h2>Milestones</h2>
+  <ol data-checklist="p1">
+    <li><span><strong>Listen like a VJ (30 min).</strong> Load the track with the track bar. Listen 2–3 times with headphones. Write down: 3 mood words, the main instruments, and one visual idea ("the vocal feels like fog", "the kick is a heartbeat"). Pick a palette of 2–3 hues.</span></li>
+    <li><span><strong>Map the structure (20 min).</strong> Run the starter below, click to play, and press <kbd>M</kbd> each time a new section starts. Each press prints a ready-to-paste cue line in the console under the output. Paste them into <code>CUES</code> and rename them (<code>intro</code>, <code>build</code>, <code>breakdown</code>, <code>drop</code>, <code>outro</code>…).</span></li>
+    <li><span><strong>Style each section (30 min).</strong> Fill in <code>STYLES</code>: a hue and an energy level for each section name. Set <code>TITLE</code>. Use <kbd>←</kbd> <kbd>→</kbd> to jump around and check every section looks different.</span></li>
+    <li><span><strong>Base layer (60 min).</strong> Replace or rework <code>drawBase()</code> with something that expresses your mood words. Use your noise blob, Unknown Pleasures, a tunnel or gradients. Drive it with <em>slow</em> values (<code>A.mid</code>, <code>energy</code>).</span></li>
+    <li><span><strong>Rhythm layer (60 min).</strong> Rework <code>drawRhythm()</code> so the beat is felt: rings, flashes, scale kicks, particle bursts. Use <code>A.beat</code>, <code>A.kick</code> and <code>A.bass</code>.</span></li>
+    <li><span><strong>Detail layer (45 min).</strong> Rework <code>drawDetail()</code>: waveforms, sparkles on hi-hats (<code>A.treble</code>), texture. Keep it subtle.</span></li>
+    <li><span><strong>The drop (30 min).</strong> Make the drop unforgettable: <code>onSectionChange()</code> already runs at every cue, so add a special case for <code>'drop'</code>. Think contrast: if the breakdown is sparse and cool, the drop should be dense and hot.</span></li>
+    <li><span><strong>Polish (30 min).</strong> Title card typography, end fade, <code>pixelDensity(1)</code>, test fullscreen (<kbd>F</kbd>), hide the HUD (<kbd>H</kbd>). Show it to your DJ friend and get one round of feedback.</span></li>
+    <li><span><strong>Ship it (15 min).</strong> <strong>⤓ Export</strong>, test the exported file, then record it following <a href="../lessons/11-capture-portfolio.html">lesson 11</a>.</span></li>
+  </ol>
+
+  <h2>The starter</h2>
+  <p>It works out of the box with the demo beat, and its cues already match the demo's sections. Click the output to play. Keys: <kbd>Space</kbd>/click play or pause · <kbd>←</kbd> <kbd>→</kbd> seek 5 s · <kbd>M</kbd> mark a cue · <kbd>H</kbd> HUD · <kbd>F</kbd> fullscreen.</p>
+</div>
+
+<div class="pg wide" data-id="p1-portrait" data-title="Song Portrait" data-height="480" data-audio>
+<textarea>
+// =====================================================================
+//  SONG PORTRAIT — a visual for one specific track
+// =====================================================================
+
+const TITLE = 'Demo Beat — Code';   // 'Track name — Artist'
+
+// Section cues: press M while the song plays to print new lines in the console
+const CUES = [
+  { name: 'intro', start: 0 },
+  { name: 'groove', start: 8 },
+  { name: 'breakdown', start: 16 },
+  { name: 'drop', start: 20 },
+];
+
+// How each section looks. energy: 0 = calm … 1 = maximum
+const STYLES = {
+  intro:     { hue: 220, energy: 0.3 },
+  groove:    { hue: 280, energy: 0.6 },
+  breakdown: { hue: 190, energy: 0.15 },
+  drop:      { hue: 330, energy: 1.0 },
+};
+
+// ================= AUDIO ENGINE (from lesson 10) =================
+let song, fft;
+let A = { bass: 0, mid: 0, treble: 0, beat: false, beats: 0, kick: 0, wave: [] };
+let peak = { bass: 30, mid: 30, treble: 30 };
+let bassAvg = 0, lastBeat = 0;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function follow(cur, target, attack, release) {
+  return target > cur ? lerp(cur, target, attack) : lerp(cur, target, release);
+}
+
+function autoGain(name, v) {
+  peak[name] = max(peak[name] * 0.995, v, 30);
+  return v / peak[name];
+}
+
+function updateAudio() {
+  fft.analyze();
+  let b = fft.getEnergy('bass'), m = fft.getEnergy('mid'), t = fft.getEnergy('treble');
+  A.bass = follow(A.bass, autoGain('bass', b), 0.6, 0.12);
+  A.mid = follow(A.mid, autoGain('mid', m), 0.3, 0.05);
+  A.treble = follow(A.treble, autoGain('treble', t), 0.7, 0.2);
+  bassAvg = lerp(bassAvg, b, 0.05);
+  A.beat = b > bassAvg * 1.25 && b > 60 && millis() - lastBeat > 250;
+  if (A.beat) { lastBeat = millis(); A.beats++; A.kick = 1; }
+  A.kick *= 0.88;
+  A.wave = fft.waveform();
+}
+
+// ================= SECTIONS =================
+let section = CUES[0].name;
+let hueNow = STYLES[CUES[0].name].hue;   // smoothly follows the section hue
+let energy = 0;                          // smoothly follows the section energy
+let flash = 0;
+
+function currentSection(t) {
+  let name = CUES[0].name;
+  for (let c of CUES) if (t >= c.start) name = c.name;
+  return name;
+}
+
+function onSectionChange(from, to) {
+  flash = 0.6;
+  if (to === 'drop') {
+    flash = 1;
+    for (let i = 0; i < 250; i++) rings.push(new Ring(random(0.2, 1.2), random(-40, 40)));
+  }
+}
+
+function hueDist(a, b) { return ((b - a + 540) % 360) - 180; }   // shortest way round the color wheel
+
+// ================= LAYERS =================
+let rings = [];
+
+class Ring {
+  constructor(power, hueShift) {
+    this.r = 10; this.power = power; this.hueShift = hueShift; this.life = 1;
+  }
+  update() { this.r += 3 + this.power * 9; this.life -= 0.015; }
+  show() {
+    noFill();
+    stroke((hueNow + this.hueShift + 360) % 360, 70, 100, this.life * 0.8);
+    strokeWeight(1 + this.power * 4 * this.life);
+    circle(0, 0, this.r * 2);
+  }
+}
+
+function drawBase() {
+  // slow, soft blobs drifting with noise: the mood
+  let s = min(width, height);
+  background(hueNow, 70, 6 + energy * 6);
+  noStroke();
+  for (let i = 0; i < 6; i++) {
+    let t = frameCount * 0.002 * (0.5 + energy) + i * 10;
+    let x = width * noise(t, 1);
+    let y = height * noise(t, 2);
+    fill((hueNow + i * 12) % 360, 60, 40 + A.mid * 30, 0.12);
+    circle(x, y, s * (0.5 + A.mid * 0.4));
+  }
+}
+
+function drawRhythm() {
+  translate(width / 2, height / 2);
+  if (A.beat && energy > 0.2) rings.push(new Ring(energy, 0));
+  for (let i = rings.length - 1; i >= 0; i--) {
+    rings[i].update();
+    rings[i].show();
+    if (rings[i].life <= 0) rings.splice(i, 1);
+  }
+  // core
+  noStroke();
+  fill(hueNow, 50, 100);
+  circle(0, 0, min(width, height) * (0.05 + A.bass * 0.12 * (0.3 + energy) + A.kick * 0.05));
+}
+
+function drawDetail() {
+  // waveform ring that sparkles with the highs
+  translate(width / 2, height / 2);
+  let r0 = min(width, height) * 0.28;
+  noFill();
+  stroke((hueNow + 180) % 360, 30, 100, 0.3 + A.treble * 0.5);
+  strokeWeight(1.5);
+  beginShape();
+  for (let i = 0; i < A.wave.length; i += 8) {
+    let a = map(i, 0, A.wave.length, 0, TWO_PI);
+    let r = r0 + A.wave[i] * r0 * 0.5 * (0.3 + energy);
+    vertex(r * cos(a), r * sin(a));
+  }
+  endShape(CLOSE);
+}
+
+function drawTitleAndFades(t) {
+  // title card for the first 5 seconds
+  let titleAlpha = constrain(map(t, 3, 5, 1, 0), 0, 1);
+  if (titleAlpha > 0 && song.isPlaying()) {
+    noStroke();
+    fill(0, 0, 100, titleAlpha);
+    textAlign(CENTER, CENTER);
+    textSize(min(width, height) * 0.06);
+    text(TITLE, width / 2, height * 0.82);
+  }
+  // fade to black over the last 3 seconds
+  let endFade = constrain(map(t, song.duration() - 3, song.duration(), 0, 1), 0, 1);
+  if (endFade > 0) background(0, 0, 0, endFade);
+}
+
+// ================= MAIN =================
+let showHud = true;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  colorMode(HSB);
+  fft = new p5.FFT(0.6, 1024);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function draw() {
+  updateAudio();
+  let t = song.currentTime();
+
+  let now = currentSection(t);
+  if (now !== section) { onSectionChange(section, now); section = now; }
+  let style = STYLES[section] || { hue: 0, energy: 0.5 };
+  hueNow = (hueNow + hueDist(hueNow, style.hue) * 0.03 + 360) % 360;
+  energy = lerp(energy, style.energy, 0.03);
+
+  push(); drawBase(); pop();
+  push(); drawRhythm(); pop();
+  push(); drawDetail(); pop();
+
+  if (flash > 0.01) { background(0, 0, 100, flash); flash *= 0.88; }
+  drawTitleAndFades(t);
+
+  if (showHud) {
+    noStroke(); fill(0, 0, 100); textAlign(LEFT, BASELINE); textSize(12);
+    text(nf(t, 1, 1) + 's · ' + section + ' · energy ' + nf(energy, 1, 2) + ' · beats ' + A.beats +
+         ' · ' + round(frameRate()) + 'fps' + (song.isPlaying() ? '' : ' · CLICK TO PLAY') +
+         '   [space play · ←→ seek · M mark cue · H hud · F fullscreen]', 10, height - 10);
+  }
+}
+
+// ================= CONTROLS =================
+function togglePlay() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.play();
+}
+
+function mousePressed() { togglePlay(); }
+
+function keyPressed() {
+  if (key === ' ') togglePlay();
+  if (keyCode === RIGHT_ARROW) song.jump(min(song.currentTime() + 5, song.duration() - 0.5));
+  if (keyCode === LEFT_ARROW) song.jump(max(song.currentTime() - 5, 0));
+  if (key === 'm' || key === 'M') console.log("{ name: 'section', start: " + nf(song.currentTime(), 1, 1) + " },");
+  if (key === 'h' || key === 'H') showHud = !showHud;
+  if (key === 'f' || key === 'F') fullscreen(!fullscreen());
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>How the starter works</h2>
+  <ul>
+    <li><strong><code>CUES</code></strong> lists section start times. Every frame, <code>currentSection()</code> finds the last cue whose start time has passed.</li>
+    <li><strong>Edge detection</strong> (lesson 09): when the section name changes, <code>onSectionChange(from, to)</code> runs once. That's where one-off events go.</li>
+    <li><strong><code>hueNow</code> and <code>energy</code></strong> glide toward the section's style instead of jumping. <code>hueDist</code> makes the hue take the short way round the color wheel (from 350 to 10 is +20, not -340).</li>
+    <li><strong>Three layer functions</strong>, each wrapped in <code>push()</code>/<code>pop()</code>, are drawn back to front: base, then rhythm, then detail.</li>
+    <li><strong>Seeking</strong> with the arrow keys lets you test the drop 20 times in a row without waiting.</li>
+  </ul>
+
+  <h2>Design advice</h2>
+  <div class="split">
+    <div class="box">
+      <h3>Contrast is everything</h3>
+      <p>The drop only feels big if what came before it was small. Make breakdowns <em>emptier</em> than you think: fewer elements, less motion, darker colors. Then go all-in on the drop.</p>
+    </div>
+    <div class="box">
+      <h3>One idea, done well</h3>
+      <p>Choose one visual motif (a circle, a horizon, a grid, a line) and let it evolve through the song. Throwing every effect in at once ends up looking like a screensaver.</p>
+    </div>
+    <div class="box">
+      <h3>Borrow from the track</h3>
+      <p>Use its artwork colors, its title, a lyric, the genre's culture. Techno suits monochrome and geometry. Disco and house suit warmth and sparkle. Ambient suits slow, soft, noise-based visuals.</p>
+    </div>
+    <div class="box">
+      <h3>Map the right sound to the right thing</h3>
+      <p>Kick → scale and flashes. Bass → weight and size. Mids and vocals → color and slow form. Hi-hats → sparkle and texture. When the mapping makes sense, the audience feels it without thinking about it.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Want hand-placed moments?</strong>
+    Add more data to each cue, like <code>{ name: 'drop', start: 64.2, text: 'LET GO' }</code>, and read <code>cue.text</code> when that section starts. You can also schedule things inside a section using <code>t - cue.start</code> (seconds since the section began). This is how music videos are made in code.
+  </div>
+
+  <div class="callout callout--warn">
+    <strong>Stuck or behind schedule?</strong>
+    The starter already counts as a valid portrait. Customize the <code>CUES</code>, <code>STYLES</code> and <code>TITLE</code>, swap <code>drawBase()</code> for one of your lesson challenges (Unknown Pleasures makes an excellent base layer), and move on to Project 2. Done beats perfect when the deadline is in hours.
+  </div>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

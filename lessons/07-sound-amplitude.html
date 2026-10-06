@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 · Playing Sound & Loudness — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="07" data-root=".." data-audio>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Playing Sound &amp; Loudness</h1>
+  <p class="lead">Time to plug in the music. By the end of this lesson your visuals will breathe with the volume of a track.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to load and play an audio file with <strong>p5.sound</strong></li>
+      <li>The "click to start" rule that browsers enforce</li>
+      <li>How to measure loudness with <code>p5.Amplitude</code></li>
+      <li>How to read a song's structure from its loudness history</li>
+    </ul>
+  </div>
+
+  <div class="callout callout--tip">
+    <strong>The track bar ☝</strong>
+    The bar at the top of the page picks the audio for every sketch here. The demo beat is 24 seconds long with four sections: an <strong>intro</strong> (kick and hats), a <strong>groove</strong> (bass, clap and pads come in), a <strong>breakdown</strong> (no kick, then a rising noise), and a <strong>drop</strong>. Load one of your DJ friend's tracks once things work. Use headphones if you're somewhere quiet!
+  </div>
+
+  <h2>Loading and playing</h2>
+  <p>Three new pieces:</p>
+  <ul>
+    <li><code>preload()</code> is a third special function. It runs <em>before</em> <code>setup()</code> and waits until files have finished loading.</li>
+    <li><code>loadSound(AUDIO_URL)</code> loads the track. <code>AUDIO_URL</code> is a variable this site provides: it points to whatever you picked in the track bar. In your own projects it will point to your file.</li>
+    <li><strong>Browsers block sound until the user clicks.</strong> That's an anti-annoying-ads rule. So we start playback in <code>mousePressed()</code> and call <code>userStartAudio()</code> to unlock audio.</li>
+  </ul>
+</div>
+
+<div class="pg wide" data-id="07-player" data-title="A tiny music player" data-audio>
+<textarea>
+let song;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(400, 200);
+}
+
+function draw() {
+  background(20, 20, 30);
+
+  let t = song.currentTime();   // seconds into the track
+  let d = song.duration();      // total length in seconds
+
+  // progress bar
+  noStroke();
+  fill(50);
+  rect(20, 120, width - 40, 10, 5);
+  fill(124, 246, 200);
+  rect(20, 120, map(t, 0, d, 0, width - 40), 10, 5);
+
+  fill(255);
+  textSize(16);
+  text(nf(t, 1, 1) + ' s / ' + nf(d, 1, 1) + ' s', 20, 100);  // nf = number format
+  text(song.isPlaying() ? '▶ playing — click to pause' : '❚❚ click to play', 20, 60);
+  textSize(12);
+  fill(150);
+  text('← / → : jump 5 seconds', 20, 170);
+}
+
+function mousePressed() {
+  userStartAudio();             // unlock audio (browser rule)
+  if (song.isPlaying()) {
+    song.pause();
+  } else {
+    song.loop();                // play, and start again when it ends
+  }
+}
+
+function keyPressed() {
+  if (keyCode === RIGHT_ARROW) song.jump(min(song.currentTime() + 5, song.duration() - 0.1));
+  if (keyCode === LEFT_ARROW) song.jump(max(song.currentTime() - 5, 0));
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <table class="ref">
+    <tr><th>Sound method</th><th>Does</th></tr>
+    <tr><td><code>song.play()</code> / <code>song.loop()</code></td><td>Start playing (once, or repeating)</td></tr>
+    <tr><td><code>song.pause()</code> / <code>song.stop()</code></td><td>Pause (remembers the position) or stop (goes back to 0)</td></tr>
+    <tr><td><code>song.isPlaying()</code></td><td><code>true</code> or <code>false</code></td></tr>
+    <tr><td><code>song.currentTime()</code>, <code>song.duration()</code></td><td>Position and length, in seconds</td></tr>
+    <tr><td><code>song.jump(seconds)</code></td><td>Skip to a time. Great for testing one part of a song again and again</td></tr>
+    <tr><td><code>song.setVolume(0.5)</code></td><td>Volume from 0 to 1</td></tr>
+  </table>
+
+  <h2>Measuring loudness: p5.Amplitude</h2>
+  <p><code>new p5.Amplitude()</code> creates a loudness meter that listens to everything p5 is playing. <code>amp.getLevel()</code> gives the current volume as a number from 0 to 1.</p>
+  <div class="callout callout--warn">
+    <strong>Real music rarely goes above 0.4</strong>
+    So don't map from 0–1. Map from 0 to about 0.3, and use <code>constrain</code> or <code>map(..., true)</code> so loud peaks don't explode. Every track is different, which is why the sketch below shows the live number so you can calibrate.
+  </div>
+</div>
+
+<div class="pg wide" data-id="07-amp" data-title="Loudness → size" data-audio>
+<textarea>
+let song, amp;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(400, 400);
+  amp = new p5.Amplitude();
+  colorMode(HSB);
+}
+
+function draw() {
+  background(250, 40, 8);
+
+  let level = amp.getLevel();                     // 0 … ~0.4
+
+  let size = map(level, 0, 0.3, 40, 380, true);   // loudness → diameter
+  let hue = map(level, 0, 0.3, 200, 340, true);   // and → color
+
+  noStroke();
+  fill(hue, 80, 100);
+  circle(width / 2, height / 2, size);
+
+  // level meter on the left, plus the raw number for calibrating
+  fill(0, 0, 100);
+  rect(10, height - 10, 12, -level * 1000);
+  text('level: ' + nf(level, 1, 3), 30, height - 14);
+  if (!song.isPlaying()) text('click to play', width / 2 - 35, 30);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Watch the number. What's the loudest level you see? Change <code>0.3</code> in both <code>map()</code> calls to suit it.</li>
+      <li>The size jumps around a lot. Try <code>amp.smooth(0.9);</code> in <code>setup()</code> (values from 0 to 0.99, higher is smoother). You'll learn a better smoothing method in lesson 09.</li>
+      <li>Use loudness for something other than size: the <code>strokeWeight</code>, the number of shapes in a loop, or the background brightness.</li>
+      <li>Load one of your DJ friend's tracks with the track bar and compare. Notice that the levels change.</li>
+    </ol>
+  </div>
+
+  <h2>Seeing a song's structure</h2>
+  <p>Combine loudness with the history array from lesson 06 and you get a scrolling graph of the whole track. You can <em>see</em> the breakdown (the dip) and the drop (the wall). Knowing where those moments are is the key to Project 1.</p>
+</div>
+
+<div class="pg wide" data-id="07-history" data-title="Loudness history" data-audio>
+<textarea>
+let song, amp;
+let levels = [];
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 300);
+  amp = new p5.Amplitude();
+}
+
+function draw() {
+  background(15, 15, 25);
+
+  if (song.isPlaying()) {
+    levels.push(amp.getLevel());
+    if (levels.length > width) levels.shift();   // keep one value per pixel
+  }
+
+  // draw the history as vertical lines, newest on the right
+  stroke(124, 246, 200);
+  for (let i = 0; i < levels.length; i++) {
+    let h = map(levels[i], 0, 0.35, 0, height - 40, true);
+    let x = width - levels.length + i;
+    line(x, height - 20, x, height - 20 - h);
+  }
+
+  noStroke();
+  fill(255);
+  text(song.isPlaying() ? nf(song.currentTime(), 1, 1) + ' s' : 'click to play', 10, 20);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout callout--dj">
+    <strong>Why DJs will love this</strong>
+    Dance tracks follow strong structures: 8-, 16- and 32-bar phrases, with build-ups, breakdowns and drops. Visuals that <em>change with the structure</em> look intentional and "designed". Visuals that only pulse look like a screensaver. Keep this in mind for the projects.
+  </div>
+
+  <div class="challenge">
+    <h3>💓 Challenge: Pulse poster (20 min)</h3>
+    <p>Bring back your <strong>cover art from lesson 01</strong> (or the metronome, tunnel or radial pattern from lessons 02–04) and make it audio-reactive:</p>
+    <ul>
+      <li>At least <strong>3 different properties</strong> react to <code>level</code>: for example size, color, stroke weight, rotation speed or the number of elements</li>
+      <li>At least one reaction should be <strong>subtle</strong> (a small range) and one <strong>dramatic</strong>. Contrast keeps visuals interesting</li>
+      <li>Calibrate it on the demo beat, then test it with a real track</li>
+    </ul>
+    <p>Paste your old code below, add <code>song</code>, <code>amp</code>, <code>preload</code> and <code>mousePressed</code> from the examples above, and connect <code>level</code> to things.</p>
+  </div>
+</div>
+
+<div class="pg wide" data-id="07-challenge" data-title="Challenge: pulse poster" data-audio>
+<textarea>
+let song, amp;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(400, 400);
+  amp = new p5.Amplitude();
+  colorMode(HSB);
+}
+
+function draw() {
+  let level = amp.getLevel();
+  background(0, 0, 8);
+
+  // your audio-reactive poster here
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution (the radial pattern, made reactive)</summary>
+<pre class="snippet">let angle = 0;
+
+function draw() {
+  let level = amp.getLevel();
+  background(260, 50, 8);
+  translate(width / 2, height / 2);
+
+  angle += map(level, 0, 0.3, 0.002, 0.04, true);     // louder = spins faster
+  rotate(angle);
+
+  let spokes = 24;
+  let len = map(level, 0, 0.3, 60, 170, true);          // dramatic
+  let hue = map(level, 0, 0.3, 280, 330, true);         // subtle
+  for (let i = 0; i &lt; spokes; i++) {
+    push();
+    rotate(TWO_PI * i / spokes);
+    noStroke();
+    fill(hue, 70, 100);
+    rect(40, -3, len, 6, 3);
+    pop();
+  }
+  fill(0, 0, 100);
+  circle(0, 0, 30 + level * 200);
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

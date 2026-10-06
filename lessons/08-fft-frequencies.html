@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 · Frequencies: FFT & Waveforms — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="08" data-root=".." data-audio>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Frequencies: FFT &amp; Waveforms</h1>
+  <p class="lead">Loudness treats the whole track as one number. But the kick, the bassline, the vocal and the hi-hats all live in different <em>frequencies</em>. If you separate them, each one can drive its own part of the visual.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>What an FFT is (no math, promise)</li>
+      <li>How to draw a spectrum: <code>fft.analyze()</code></li>
+      <li>How to get the five named bands: <code>fft.getEnergy('bass')</code> … <code>'treble'</code></li>
+      <li>How to draw the waveform (oscilloscope): <code>fft.waveform()</code></li>
+      <li>How to make spectrum displays that look musical, using log-spaced bands</li>
+    </ul>
+  </div>
+
+  <h2>The idea</h2>
+  <p>Any sound is a mix of many pitches at once. An <strong>FFT</strong> (Fast Fourier Transform) is like a prism for sound. It splits the mix into hundreds of thin slices, from low rumble to high sizzle, and tells you how loud each slice is right now.</p>
+  <svg class="diagram" viewBox="0 0 640 170" width="640" role="img" aria-label="Spectrum from bass on the left to treble on the right">
+    <g font-family="monospace" font-size="12">
+      <rect x="10" y="20" width="110" height="110" rx="8" fill="#ff6fae" opacity=".22"/>
+      <rect x="125" y="20" width="110" height="110" rx="8" fill="#ffc861" opacity=".22"/>
+      <rect x="240" y="20" width="140" height="110" rx="8" fill="#7cf6c8" opacity=".22"/>
+      <rect x="385" y="20" width="110" height="110" rx="8" fill="#7fb3ff" opacity=".22"/>
+      <rect x="500" y="20" width="130" height="110" rx="8" fill="#c79bff" opacity=".22"/>
+      <text x="20" y="45" fill="#ff6fae">bass</text><text x="20" y="62" fill="#9aa1b6">20–140 Hz</text><text x="20" y="115" fill="#e9ebf2">kick, sub</text>
+      <text x="135" y="45" fill="#ffc861">lowMid</text><text x="135" y="62" fill="#9aa1b6">140–400</text><text x="135" y="115" fill="#e9ebf2">bassline</text>
+      <text x="250" y="45" fill="#7cf6c8">mid</text><text x="250" y="62" fill="#9aa1b6">400–2600</text><text x="250" y="115" fill="#e9ebf2">vocals, synths</text>
+      <text x="395" y="45" fill="#7fb3ff">highMid</text><text x="395" y="62" fill="#9aa1b6">2.6k–5.2k</text><text x="395" y="115" fill="#e9ebf2">snare, claps</text>
+      <text x="510" y="45" fill="#c79bff">treble</text><text x="510" y="62" fill="#9aa1b6">5.2k–14k</text><text x="510" y="115" fill="#e9ebf2">hi-hats, air</text>
+      <text x="10" y="160" fill="#9aa1b6">← low pitch</text><text x="540" y="160" fill="#9aa1b6">high pitch →</text>
+    </g>
+  </svg>
+
+  <h2>The raw spectrum</h2>
+  <p>Create the analyzer with <code>fft = new p5.FFT()</code>. Then, <strong>every frame</strong>, call <code>fft.analyze()</code>. It returns an array of 1024 numbers (each from 0 to 255), one per frequency slice, with bass first.</p>
+</div>
+
+<div class="pg wide" data-id="08-spectrum" data-title="Raw spectrum" data-audio>
+<textarea>
+let song, fft;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 300);
+  fft = new p5.FFT(0.8, 1024);   // smoothing 0..0.99, number of bins
+  colorMode(HSB);
+}
+
+function draw() {
+  background(240, 40, 8);
+
+  let spectrum = fft.analyze();  // array of 1024 values, 0..255
+
+  noStroke();
+  let w = width / spectrum.length;
+  for (let i = 0; i < spectrum.length; i++) {
+    let h = map(spectrum[i], 0, 255, 0, height);
+    fill(map(i, 0, spectrum.length, 300, 180), 80, 100);
+    rect(i * w, height - h, w + 1, h);
+  }
+
+  fill(0, 0, 100);
+  text(song.isPlaying() ? '' : 'click to play', 10, 20);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <p>Notice that almost everything happens on the <strong>left side</strong>. That's because the slices are evenly spaced in Hz, but our ears hear pitch <em>logarithmically</em>: each octave doubles the frequency. So the musical "middle" is squeezed far to the left. We'll fix that below. First, here's the easy way to work with frequencies.</p>
+
+  <h2>Named bands: getEnergy()</h2>
+  <p>Usually you don't want 1024 numbers. You want "how much kick is there?" and "how much hi-hat?". <code>fft.getEnergy('bass')</code> returns 0–255 for that band. You can also ask for a custom range in Hz: <code>fft.getEnergy(40, 100)</code> isolates kick drums well.</p>
+  <div class="callout callout--warn">
+    <strong>Always call <code>fft.analyze()</code> first</strong>
+    <code>getEnergy()</code> reads the result of the most recent <code>analyze()</code>. Call <code>analyze()</code> once at the top of <code>draw()</code>, then read as many bands as you like.
+  </div>
+</div>
+
+<div class="pg wide" data-id="08-bands" data-title="Five bands, five circles" data-audio>
+<textarea>
+let song, fft;
+const BANDS = ['bass', 'lowMid', 'mid', 'highMid', 'treble'];
+const HUES = [330, 40, 160, 210, 270];
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 300);
+  fft = new p5.FFT(0.8);
+  colorMode(HSB);
+  textAlign(CENTER);
+}
+
+function draw() {
+  background(240, 40, 8);
+  fft.analyze();                       // analyze ONCE per frame
+
+  for (let i = 0; i < BANDS.length; i++) {
+    let energy = fft.getEnergy(BANDS[i]);    // 0..255
+    let x = map(i, 0, BANDS.length - 1, 70, width - 70);
+    let size = map(energy, 0, 255, 10, 160);
+
+    noStroke();
+    fill(HUES[i], 80, 100, map(energy, 0, 255, 0.2, 1));
+    circle(x, height / 2, size);
+
+    fill(0, 0, 100);
+    text(BANDS[i] + '\n' + round(energy), x, height - 40);
+  }
+  if (!song.isPlaying()) text('click to play', width / 2, 24);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Watch the demo beat. In the intro, only bass and treble move (kick and hats). In the groove, lowMid and highMid join (bassline and claps). In the breakdown, the bass goes quiet.</li>
+      <li>Replace <code>'bass'</code> with <code>fft.getEnergy(40, 90)</code>. Does it pick out the kick more cleanly?</li>
+      <li>Load a real track. Which bands are the busiest? Every genre has its own "fingerprint".</li>
+    </ol>
+  </div>
+
+  <h2>The waveform</h2>
+  <p><code>fft.waveform()</code> gives you the actual shape of the sound wave: an array of values from -1 to 1. Draw it as a line and you have an oscilloscope, the classic "music visualizer" look. It responds instantly and is very detailed, which makes it great for line-art styles.</p>
+</div>
+
+<div class="pg wide" data-id="08-wave" data-title="Oscilloscope + circular waveform" data-audio>
+<textarea>
+let song, fft;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 400);
+  fft = new p5.FFT(0.8, 1024);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(240, 40, 6, 0.35);   // slight trails
+  let wave = fft.waveform();      // array of -1..1
+
+  // 1. straight oscilloscope line across the top
+  noFill();
+  stroke(170, 80, 100);
+  strokeWeight(2);
+  beginShape();
+  for (let i = 0; i < wave.length; i++) {
+    let x = map(i, 0, wave.length, 0, width);
+    let y = 80 + wave[i] * 60;
+    vertex(x, y);
+  }
+  endShape();
+
+  // 2. the same data bent into a circle
+  push();
+  translate(width / 2, 260);
+  stroke(320, 80, 100);
+  beginShape();
+  for (let i = 0; i < wave.length; i++) {
+    let angle = map(i, 0, wave.length, 0, TWO_PI);
+    let r = 90 + wave[i] * 60;
+    vertex(r * cos(angle), r * sin(angle));
+  }
+  endShape(CLOSE);
+  pop();
+
+  noStroke();
+  fill(0, 0, 100);
+  if (!song.isPlaying()) text('click to play', 10, 20);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>Musical spectrums: log-spaced bands</h2>
+  <p>To spread the spectrum the way ears hear it, group the slices into <strong>octave bands</strong>. <code>fft.getOctaveBands(n)</code> makes bands that are each 1/n of an octave wide, and <code>fft.logAverages(bands)</code> gives you one energy value per band. The result is about 30–60 values that are spread evenly across what you actually hear. That makes them ideal for radial and grid visuals.</p>
+</div>
+
+<div class="pg wide" data-id="08-radial" data-title="Radial log spectrum" data-audio>
+<textarea>
+let song, fft, octaveBands;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(500, 500);
+  fft = new p5.FFT(0.75, 2048);
+  octaveBands = fft.getOctaveBands(4);   // 4 bands per octave ≈ 40 bands
+  colorMode(HSB);
+}
+
+function draw() {
+  background(250, 50, 6);
+  fft.analyze();
+  let bands = fft.logAverages(octaveBands);   // one 0..255 value per band
+
+  translate(width / 2, height / 2);
+  rotate(frameCount * 0.002);
+
+  let n = bands.length;
+  for (let i = 0; i < n; i++) {
+    let angle = TWO_PI * i / n;
+    let len = map(bands[i], 0, 255, 4, 170);
+    push();
+    rotate(angle);
+    noStroke();
+    fill(map(i, 0, n, 300, 160), 80, 100);
+    rect(60, -5, len, 10, 5);
+    pop();
+  }
+
+  // bass drives the center
+  let bass = fft.getEnergy('bass');
+  fill(330, 70, 100);
+  circle(0, 0, map(bass, 0, 255, 20, 110));
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout">
+    <strong>Spectrum or bands: which do you need?</strong>
+    Use <strong>getEnergy bands</strong> to <em>control</em> things: bass → scale, treble → sparkle, mid → color. Use the <strong>whole spectrum or waveform</strong> when you want to <em>show</em> the sound itself. Most good visuals do some of both.
+  </div>
+
+  <div class="challenge">
+    <h3>🔊 Challenge: Speaker wall, for real (25 min)</h3>
+    <p>Take your speaker wall from lesson 04 (or the reactive grid) and connect it to the music:</p>
+    <ul>
+      <li>Each <strong>column</strong> reacts to a different band. With 5 columns, use the 5 named bands</li>
+      <li>The rings "pump" with the band's energy</li>
+      <li>Add a waveform line across the bottom, or around each speaker if you're feeling brave</li>
+      <li>Calibrate: bands that are rarely loud (like treble) may need a smaller input range, e.g. <code>map(e, 0, 150, ...)</code></li>
+    </ul>
+  </div>
+</div>
+
+<div class="pg wide" data-id="08-challenge" data-title="Challenge: reactive speaker wall" data-audio>
+<textarea>
+let song, fft;
+const BANDS = ['bass', 'lowMid', 'mid', 'highMid', 'treble'];
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 360);
+  fft = new p5.FFT(0.8);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(0, 0, 8);
+  fft.analyze();
+
+  // your speaker wall here
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">function draw() {
+  background(0, 0, 8);
+  fft.analyze();
+  let cols = BANDS.length, rows = 3;
+  let cw = width / cols, ch = (height - 60) / rows;
+
+  for (let c = 0; c &lt; cols; c++) {
+    let e = fft.getEnergy(BANDS[c]);
+    let pump = map(e, 0, 255, 0.6, 1.5);
+    for (let r = 0; r &lt; rows; r++) {
+      push();
+      translate(c * cw + cw / 2, r * ch + ch / 2);
+      noFill();
+      stroke(c * 60 + 180, 60, map(e, 0, 255, 30, 100));
+      strokeWeight(2);
+      for (let k = 1; k &lt;= 4; k++) circle(0, 0, k * 16 * pump);
+      pop();
+    }
+  }
+
+  let wave = fft.waveform();
+  noFill();
+  stroke(0, 0, 100);
+  beginShape();
+  for (let i = 0; i &lt; wave.length; i += 4) {
+    vertex(map(i, 0, wave.length, 0, width), height - 30 + wave[i] * 25);
+  }
+  endShape();
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

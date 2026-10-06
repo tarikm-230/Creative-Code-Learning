@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 · Capture & Portfolio — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="11" data-root=".." data-audio data-live>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Capture &amp; Portfolio</h1>
+  <p class="lead">Live visuals disappear when the laptop closes. Your portfolio needs <strong>video</strong>, <strong>stills</strong> and a <strong>story</strong>. This lesson covers all three, and ends with a submission checklist.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to record high-quality video, either with OBS or straight from your sketch</li>
+      <li>How to save stills and process shots</li>
+      <li>How to convert, trim and present your videos</li>
+      <li>How to write up each project like a creative technologist</li>
+    </ul>
+  </div>
+
+  <h2>Option A: OBS Studio (recommended)</h2>
+  <p><a href="https://obsproject.com/">OBS Studio</a> is free and is the standard tool for screen recording. It captures the browser window <em>and</em> the computer's audio in sync, at high quality.</p>
+  <ol>
+    <li>Install OBS. In <em>Settings → Video</em>, set Base and Output resolution to <strong>1920×1080</strong> and FPS to <strong>60</strong>.</li>
+    <li>In <em>Settings → Output → Recording</em>, set the format to <strong>MP4</strong> (or MKV, then use File → Remux to MP4) and quality to "Indistinguishable" (or CRF/CQP about 18).</li>
+    <li>Add a source: <strong>Window Capture</strong> (macOS: <em>macOS Screen Capture → Window</em>) and choose your browser window. Add <strong>Desktop Audio</strong> if it isn't there already.</li>
+    <li>Open your <strong>exported</strong> project, press <kbd>F</kbd> for fullscreen and <kbd>H</kbd> to hide the HUD, then start recording.</li>
+  </ol>
+
+  <h2>Option B: record from inside the sketch</h2>
+  <p>Browsers can record a canvas directly with the <code>MediaRecorder</code> API. That gives you frame-perfect video with the exact audio p5 plays, and nothing else on screen. Paste this block into any sketch, then press <kbd>R</kbd> to start and <kbd>R</kbd> again to stop. A <code>.webm</code> video downloads automatically.</p>
+</div>
+
+<div class="pg wide" data-id="11-recorder" data-title="Recorder (press R to record, C for a still)" data-height="420" data-audio>
+<textarea>
+// ===== a tiny sketch to record =====
+let song = null, mic = null, fft;
+
+function preload() {
+  if (AUDIO_URL) song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(640, 360);   // for portfolio video use createCanvas(1920, 1080)
+  pixelDensity(1);
+  colorMode(HSB);
+  fft = new p5.FFT(0.7);
+  if (!song) { mic = new p5.AudioIn(); mic.start(); fft.setInput(mic); }
+}
+
+function draw() {
+  fft.analyze();
+  let bass = fft.getEnergy('bass');
+  background(270, 60, 8, 0.3);
+  noStroke();
+  fill(map(bass, 0, 255, 200, 340), 80, 100);
+  circle(width / 2, height / 2, map(bass, 0, 255, 20, height));
+  if (recorder && recorder.state === 'recording') {
+    fill(0, 90, 100);
+    circle(20, 20, 12);     // red dot (it IS recorded; remove if you prefer)
+  }
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song) { if (song.isPlaying()) song.pause(); else song.loop(); }
+}
+
+function keyPressed() {
+  if (key === 'r' || key === 'R') toggleRecording();
+  if (key === 'c' || key === 'C') saveCanvas('still-' + frameCount, 'png');
+}
+
+// ===== RECORDER: paste everything below into your project =====
+let recorder = null, recChunks = [];
+
+function toggleRecording() {
+  if (recorder && recorder.state === 'recording') {
+    recorder.stop();
+    return;
+  }
+  // video from the canvas, audio from p5's output (or the live input)
+  let video = document.querySelector('canvas').captureStream(60);
+  let ac = getAudioContext();
+  let dest = ac.createMediaStreamDestination();
+  if (mic) mic.connect(dest); else p5.soundOut.output.connect(dest);
+  let stream = new MediaStream([...video.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+
+  let types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+  let mimeType = types.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+  recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 16000000 });
+  recChunks = [];
+  recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
+  recorder.onstop = () => {
+    let blob = new Blob(recChunks, { type: recorder.mimeType });
+    let a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'visual-' + Date.now() + (recorder.mimeType.includes('mp4') ? '.mp4' : '.webm');
+    a.click();
+    console.log('saved ' + nf(blob.size / 1e6, 1, 1) + ' MB');
+  };
+  recorder.start(1000);
+  console.log('recording… press R again to stop');
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout callout--tip">
+    <strong>Getting crisp 1080p from the sketch</strong>
+    For a recording session, temporarily change <code>createCanvas(windowWidth, windowHeight)</code> to <code>createCanvas(1920, 1080)</code> and comment out <code>windowResized()</code>. The playground shrinks the canvas to fit on screen, but the recording is still captured at full HD. Keep <code>pixelDensity(1)</code> on so the file isn't 4K by accident.
+  </div>
+  <div class="callout callout--warn">
+    <strong>Recording a live-input project</strong>
+    If the music comes in through the mic or line-in, the in-sketch recorder records that input. Laptop mics sound bad, though. For portfolio video, it's better to play the <em>track file</em> through the sketch (file mode), or to record with OBS while the DJ's mix plays.
+  </div>
+
+  <h2>Converting and trimming</h2>
+  <ul>
+    <li>Many portfolio sites and social platforms want <strong>MP4 (H.264)</strong>. Convert <code>.webm</code> with <a href="https://handbrake.fr/">HandBrake</a> (free, preset "Fast 1080p30" or "HQ 1080p60"), or with ffmpeg if you have it:
+<pre class="snippet">ffmpeg -i visual.webm -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac -b:a 256k visual.mp4</pre></li>
+    <li>Trim to the strongest <strong>30–90 seconds</strong>. For the Song Portrait, include the build into the drop. For the Setlist Engine, show 3–4 scenes and at least one track change with its title card.</li>
+    <li>Make a <strong>thumbnail</strong>: press <kbd>C</kbd> at the best moment to save a PNG still.</li>
+  </ul>
+
+  <h2>Process shots: show how you got there</h2>
+  <p>Reviewers love process. Export or screenshot your <strong>lesson challenges</strong> (cover art, speaker wall, Unknown Pleasures, drop detector). They show how your skills grew in 48 hours. A grid of 6–9 small stills labeled "Hour 3", "Hour 9" and so on tells a strong story.</p>
+
+  <h2>Music rights</h2>
+  <p>You're publishing someone else's music in your videos. Ask the artist or your DJ friend for permission. Unreleased edits by the DJ or tracks by friends are easiest. Credit every track. If you're unsure, keep excerpts short or use your DJ friend's own productions. Your <em>code and visuals</em> are yours, and the exported HTML contains no music.</p>
+
+  <h2>The write-up</h2>
+  <p>Use this structure for each project. Fill in the brackets, and keep it to about 200–300 words.</p>
+<pre class="snippet"><strong>[PROJECT TITLE]</strong>
+Audio-reactive visual · p5.js / JavaScript · 2026
+
+<strong>One line:</strong> [What it is in one sentence — e.g. "A generative music video
+for 'Track' by Artist that follows the song's structure in real time."]
+
+<strong>Concept:</strong> [Why this song / this set? What mood or idea did you translate
+into visuals? Which sound drives which visual element, and why?]
+
+<strong>Process:</strong> [Learned creative coding from scratch in 48 hours. Mapped the
+track's structure with a custom cue tool, designed three visual layers (base /
+rhythm / detail), tuned beat detection and smoothing by ear. Include 2–3
+process stills.]
+
+<strong>Technical:</strong> [Real-time FFT analysis (5 frequency bands + log-spaced
+spectrum), adaptive beat detection with tap-tempo fallback, auto-gain for live
+input, data-driven setlist and scene system, fullscreen offline performance.]
+
+<strong>Outcome:</strong> [Used / will be used by DJ ___ at ___. What you'd do next.]
+
+<strong>Credits:</strong> Music: [Track — Artist, used with permission]. Code &amp; visuals: [you].</pre>
+
+  <h2>Hosting a live version (optional, impressive)</h2>
+  <p>A link that runs the real thing in the browser is better than a video alone. The simplest way is to put your exported HTML files in this repository (for example in a <code>portfolio/</code> folder) and enable <strong>GitHub Pages</strong>, as described on the <a href="../index.html#run-locally">home page</a>. Reviewers can then open it, choose a file or use their mic, and play with it.</p>
+
+  <h2>Submission checklist</h2>
+  <ul data-checklist="submit">
+    <li><span>Project 1 video exported (MP4, 30–90 s, 1080p) + thumbnail</span></li>
+    <li><span>Project 1 HTML exported and tested offline</span></li>
+    <li><span>Project 2 video exported (MP4, 60–120 s, shows track changes) + thumbnail</span></li>
+    <li><span>Project 2 HTML exported and tested offline with mic/line-in</span></li>
+    <li><span>Process grid: 6–9 stills from lessons and iterations</span></li>
+    <li><span>Write-up for each project (concept, process, technical, credits)</span></li>
+    <li><span>Music permission/credits confirmed</span></li>
+    <li><span>Everything uploaded to the portfolio platform <strong>before 11:00 on Oct 8</strong> (one hour of buffer before noon)</span></li>
+  </ul>
+
+  <div class="callout callout--dj">
+    <strong>You did it 🎉</strong>
+    Forty-eight hours ago you hadn't written a line of code. Now you have a live visual instrument and a generative music video. Keep going: the <a href="https://p5js.org/reference/">p5.js reference</a>, <a href="https://thecodingtrain.com/">The Coding Train</a> and the <a href="https://openprocessing.org/">OpenProcessing</a> community are where to go next. When you're ready for 3D, try <a href="https://threejs.org/">three.js</a>, or <a href="https://hydra.ojack.xyz/">Hydra</a> for live coding on stage.
+  </div>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>
