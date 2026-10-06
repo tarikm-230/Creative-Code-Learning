@@ -185,6 +185,10 @@ function draw() {
 // later, anywhere:
 burst(width / 2, height / 2, 200, 320);</pre>
   <p>A function can also <strong>give back</strong> a value with <code>return</code>, like <code>isDead()</code> above.</p>
+  <div class="callout callout--warn">
+    <strong>Don't reuse p5's names</strong>
+    If you write <code>function hue()</code> or <code>function norm()</code>, p5 quietly replaces it with its own built-in function of the same name, and your sketch breaks in confusing ways. Pick names p5 doesn't use, like <code>palHue</code> or <code>autoGain</code>. The editor here warns you when this happens.
+  </div>
 
   <div class="challenge">
     <h3>🎆 Challenge: Starfield / warp speed (25 min)</h3>

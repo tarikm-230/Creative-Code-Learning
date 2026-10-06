@@ -167,7 +167,18 @@
   }
   // p5.sound is only loaded when a sketch actually uses sound.
   const SOUND_RE = /AUDIO_URL|loadSound|userStartAudio|getAudioContext|outputVolume|p5\.(Amplitude|FFT|AudioIn|PeakDetect|Oscillator|SinOsc|SqrOsc|TriOsc|SawOsc|Envelope|Noise|SoundFile|SoundRecorder)/;
-  const POSTLUDE = '\n<\/script></body></html>';
+  // After the user's code: warn if they declared a function that p5 already
+  // owns (e.g. "function norm()") — p5 silently replaces it, a nasty beginner trap.
+  const P5_EVENTS = ['setup', 'draw', 'preload', 'mousePressed', 'mouseReleased', 'mouseMoved', 'mouseDragged', 'mouseClicked',
+    'doubleClicked', 'mouseWheel', 'keyPressed', 'keyReleased', 'keyTyped', 'windowResized', 'touchStarted', 'touchMoved',
+    'touchEnded', 'deviceMoved', 'deviceTurned', 'deviceShaken'];
+  function postlude(code) {
+    const names = [];
+    code.replace(/function\s+([A-Za-z_$][\w$]*)\s*\(/g, (m, n) => { if (P5_EVENTS.indexOf(n) < 0) names.push(n); });
+    return '\n<\/script><script>(function(n){if(!window.p5)return;n.forEach(function(k){if(k in p5.prototype)' +
+      'console.warn(\'⚠ "\'+k+\'" is already the name of a built-in p5 function, so p5 will replace yours. Rename it (e.g. "my\'+k.charAt(0).toUpperCase()+k.slice(1)+\'").\');});})(' +
+      JSON.stringify(names) + ');<\/script></body></html>';
+  }
 
   /* ---------------- Playground instances ---------------- */
   const all = [];
@@ -276,7 +287,7 @@
         iframe = document.createElement('iframe');
         iframe.setAttribute('allow', 'autoplay; microphone; fullscreen');
         iframe.title = title + ' output';
-        iframe.srcdoc = pre + code + POSTLUDE;
+        iframe.srcdoc = pre + code + postlude(code);
         frameBox.innerHTML = '';
         frameBox.appendChild(iframe);
         inst.running = true;

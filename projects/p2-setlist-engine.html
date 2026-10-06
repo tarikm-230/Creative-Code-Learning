@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 2 · Setlist Engine — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="P2" data-root=".." data-audio data-live>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Project 2 — Setlist Engine</h1>
+  <p class="lead">A live visual instrument for a whole DJ set. Each track in the setlist gets its own scene, palette and title card. It listens to the mixer in real time, and you <em>perform</em> it from the keyboard during the set.</p>
+
+  <div class="goals">
+    <h3>The brief</h3>
+    <ul>
+      <li>Get a real setlist (6–12 tracks) from your DJ friend</li>
+      <li>Build or adapt <strong>at least 5 scenes</strong>, at least 2 of them your own designs</li>
+      <li>Give each track a scene, a palette and a beat sensitivity, and show a title card when the track changes</li>
+      <li>It must run on <strong>live input</strong> (mic or line-in) and work fullscreen and offline</li>
+      <li>Include performance controls: next/previous track, scene override, blackout, strobe, tap tempo</li>
+      <li>Deliverable: a 60–120 second recording of a "mini set" plus the exported HTML (lesson 11)</li>
+    </ul>
+  </div>
+
+  <div class="callout callout--tip">
+    <strong>Time budget: about 6½ hours</strong>
+    The starter already has 6 working scenes and every control. Your job is to <strong>make it yours</strong> (scenes, palettes, typography) and <strong>fit it to the setlist</strong>. That's what makes this a portfolio piece.
+  </div>
+
+  <h2>Milestones</h2>
+  <ol data-checklist="p2">
+    <li><span><strong>Collect the set (20 min).</strong> Get the setlist from your DJ friend: title, artist, rough BPM and a one-word vibe for each track. Fill in <code>SETLIST</code> in the starter.</span></li>
+    <li><span><strong>Learn the controls (20 min).</strong> Run the starter, click to play, and try every key in the HUD. Then switch the track bar to <strong>🎤 Mic / line-in</strong> and play music from your phone. Get a feel for it as an instrument.</span></li>
+    <li><span><strong>Scene #7: your own (75 min).</strong> Port your best lesson challenge (cover art, speaker wall, drop detector, starfield) into a new scene function and add it to <code>SCENES</code>.</span></li>
+    <li><span><strong>Scene #8: your own (75 min).</strong> Make something new. Ideas: a kaleidoscope (draw one slice and rotate copies), giant typography of the track title that pulses, a 3D-looking grid of noise lines, or a strobing barcode.</span></li>
+    <li><span><strong>Tune the 6 built-in scenes (45 min).</strong> Change at least something in each: shapes, speeds, how they react. Delete any you don't like. Fewer, better scenes win.</span></li>
+    <li><span><strong>Fit it to the set (45 min).</strong> Give each track a scene, palette and sensitivity that match its vibe. Build an <em>arc</em> across the set: calm openers, intense peak time, an emotional closer.</span></li>
+    <li><span><strong>Title cards &amp; look (30 min).</strong> Style the title card (font size, position, timing). Consider a small persistent logo or the DJ's name in a corner.</span></li>
+    <li><span><strong>Rehearse (30 min).</strong> Play the actual set, or a mix, through live input. Practice switching tracks (<kbd>N</kbd>) on the transitions and using blackout and strobe on big moments. Note what feels wrong and fix it.</span></li>
+    <li><span><strong>Ship it (20 min).</strong> <strong>⤓ Export</strong>, open the file with no internet, test "Use mic / line-in" and fullscreen on the laptop that will run the gig. Record a mini set following <a href="../lessons/11-capture-portfolio.html">lesson 11</a>.</span></li>
+  </ol>
+
+  <h2>Controls</h2>
+  <table class="ref">
+    <tr><th>Key</th><th>Action</th></tr>
+    <tr><td><kbd>N</kbd> / <kbd>B</kbd></td><td>Next / previous track in the setlist (applies its scene and palette, shows its title card)</td></tr>
+    <tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>Override the scene</td></tr>
+    <tr><td><kbd>P</kbd></td><td>Next palette</td></tr>
+    <tr><td><kbd>T</kbd></td><td>Tap tempo: tap 4+ times on the beat to switch to tempo clock mode</td></tr>
+    <tr><td><kbd>G</kbd></td><td>Switch back to automatic beat detection</td></tr>
+    <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Beat sensitivity</td></tr>
+    <tr><td><kbd>S</kbd> (hold)</td><td>Strobe</td></tr>
+    <tr><td><kbd>Space</kbd></td><td>Blackout</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>Show the title card again</td></tr>
+    <tr><td><kbd>F</kbd> / <kbd>H</kbd></td><td>Fullscreen / hide HUD</td></tr>
+    <tr><td>Click</td><td>Play/pause (file mode only)</td></tr>
+  </table>
+</div>
+
+<div class="pg wide" data-id="p2-engine" data-title="Setlist Engine" data-height="500" data-audio>
+<textarea>
+// =====================================================================
+//  SETLIST ENGINE — live visuals for a DJ set
+// =====================================================================
+
+const DJ_NAME = 'DJ NAME';
+
+// One entry per track. scene: index into SCENES (0 = first). palette: index into PALETTES.
+// sens: beat sensitivity (lower = more beats detected)
+const SETLIST = [
+  { title: 'Opening Track', artist: 'Artist A', scene: 0, palette: 1, sens: 1.25 },
+  { title: 'Second Track',  artist: 'Artist B', scene: 4, palette: 1, sens: 1.25 },
+  { title: 'Peak Time',     artist: 'Artist C', scene: 1, palette: 0, sens: 1.3 },
+  { title: 'The Big One',   artist: 'Artist D', scene: 5, palette: 2, sens: 1.3 },
+  { title: 'Space Out',     artist: 'Artist E', scene: 3, palette: 3, sens: 1.2 },
+  { title: 'Closer',        artist: 'Artist F', scene: 2, palette: 1, sens: 1.2 },
+];
+
+// Each palette: three hues (0-360)
+const PALETTES = [
+  [330, 20, 190],   // 0 hot: pink, orange, cyan
+  [200, 250, 170],  // 1 cool: ice, violet, mint
+  [45, 10, 355],    // 2 fire: gold, red, rose
+  [270, 300, 180],  // 3 cosmic: purple, magenta, teal
+];
+
+// ================= AUDIO ENGINE =================
+let song = null, mic = null, fft, octBands;
+let A = { bass: 0, mid: 0, treble: 0, level: 0, beat: false, beats: 0, kick: 0, wave: [], bands: [] };
+let peak = { bass: 30, mid: 30, treble: 30 };
+let bassAvg = 0, lastBeat = 0, sens = 1.25;
+
+// tap tempo
+let taps = [], tapMs = 0, tapAnchor = 0, lastTapBeat = -1, useTap = false;
+
+function preload() {
+  if (AUDIO_URL) song = loadSound(AUDIO_URL);   // no file → live input
+}
+
+function setupAudio() {
+  fft = new p5.FFT(0.6, 1024);
+  octBands = fft.getOctaveBands(3);
+  if (!song) {
+    mic = new p5.AudioIn();
+    mic.start();
+    fft.setInput(mic);
+  }
+}
+
+function follow(cur, target, attack, release) {
+  return target > cur ? lerp(cur, target, attack) : lerp(cur, target, release);
+}
+
+function autoGain(name, v) {
+  peak[name] = max(peak[name] * 0.995, v, 30);
+  return v / peak[name];
+}
+
+function updateAudio() {
+  fft.analyze();
+  let b = fft.getEnergy('bass'), m = fft.getEnergy('mid'), t = fft.getEnergy('treble');
+  A.bass = follow(A.bass, autoGain('bass', b), 0.6, 0.12);
+  A.mid = follow(A.mid, autoGain('mid', m), 0.4, 0.08);
+  A.treble = follow(A.treble, autoGain('treble', t), 0.7, 0.2);
+  A.level = (A.bass + A.mid + A.treble) / 3;
+  A.wave = fft.waveform();
+  A.bands = fft.logAverages(octBands).map((v) => v / 255);
+
+  if (useTap && tapMs > 0) {
+    // tempo clock: a beat every tapMs milliseconds, locked to your taps
+    let n = floor((millis() - tapAnchor) / tapMs);
+    A.beat = n !== lastTapBeat;
+    lastTapBeat = n;
+  } else {
+    bassAvg = lerp(bassAvg, b, 0.05);
+    A.beat = b > bassAvg * sens && b > 60 && millis() - lastBeat > 250;
+    if (A.beat) lastBeat = millis();
+  }
+  if (A.beat) { A.beats++; A.kick = 1; }
+  A.kick *= 0.88;
+}
+
+function tapTempo() {
+  let now = millis();
+  if (taps.length && now - taps[taps.length - 1] > 2000) taps = [];   // long pause = start over
+  taps.push(now);
+  if (taps.length > 6) taps.shift();
+  if (taps.length >= 3) {
+    tapMs = (taps[taps.length - 1] - taps[0]) / (taps.length - 1);
+    tapAnchor = now;
+    lastTapBeat = -1;
+    useTap = true;
+  }
+}
+
+// ================= STATE =================
+let track = 0, scene = 0, pal = 0;
+let blackout = false, showHud = true;
+let fade = 0;            // black dip when switching
+let cardStart = -99999;  // when the title card was triggered
+
+function palHue(i) { return PALETTES[pal][((i % 3) + 3) % 3]; }
+
+function goToTrack(i) {
+  track = constrain(i, 0, SETLIST.length - 1);
+  let tr = SETLIST[track];
+  scene = tr.scene % SCENES.length;
+  pal = tr.palette % PALETTES.length;
+  sens = tr.sens || 1.25;
+  fade = 1;
+  cardStart = millis();
+}
+
+// ================= SCENES =================
+// Each scene draws the full frame using A (audio) and palHue(0..2) (colors).
+
+function scenePulse() {
+  background(palHue(0), 70, 6 + A.kick * 18);
+  let s = min(width, height);
+  noStroke();
+  for (let i = 3; i >= 0; i--) {
+    fill(palHue(i), 80, 100, 0.25 + (i === 0 ? 0.75 : 0));
+    circle(width / 2, height / 2, s * (0.12 + A.bass * 0.3 + i * 0.12 * (0.5 + A.mid)));
+  }
+}
+
+function sceneTunnel() {
+  background(0, 0, 0, 0.35);
+  translate(width / 2, height / 2);
+  rectMode(CENTER);
+  noFill();
+  let s = max(width, height) * 1.3;
+  for (let i = 0; i < 26; i++) {
+    push();
+    rotate(i * 0.1 + frameCount * 0.004 * (1 + A.mid * 3));
+    stroke(palHue(i), 80, 100, 0.35 + A.treble * 0.65);
+    strokeWeight(1 + A.kick * 4);
+    square(0, 0, s * pow(0.86, i) * (1 + A.bass * 0.12));
+    pop();
+  }
+}
+
+function sceneScope() {
+  background(palHue(2), 60, 5, 0.35);
+  noFill();
+  for (let k = 0; k < 3; k++) {
+    stroke(palHue(k), 80, 100);
+    strokeWeight(2 + A.kick * 3);
+    beginShape();
+    for (let i = 0; i < A.wave.length; i += 8) {
+      let x = map(i, 0, A.wave.length, 0, width);
+      vertex(x, height * (0.3 + k * 0.2) + A.wave[i] * height * 0.25 * (1 + A.bass));
+    }
+    endShape();
+  }
+}
+
+let stars = [];
+function sceneStars() {
+  if (stars.length === 0) for (let i = 0; i < 500; i++) stars.push({ x: random(-1, 1), y: random(-1, 1), z: random(1) });
+  background(0, 0, 0, 0.45);
+  translate(width / 2, height / 2);
+  let speed = 0.003 + A.bass * 0.015 + A.kick * 0.03;
+  noStroke();
+  for (let s of stars) {
+    s.z -= speed;
+    if (s.z <= 0.01) { s.x = random(-1, 1); s.y = random(-1, 1); s.z = 1; }
+    fill(palHue(floor(abs(s.x) * 3)), 40, 100);
+    circle(s.x / s.z * width * 0.5, s.y / s.z * height * 0.5, (1 - s.z) * 6 * (1 + A.treble));
+  }
+}
+
+let ridges = [];
+function sceneRidges() {
+  // a live "Unknown Pleasures": every few frames, the spectrum becomes a new ridge
+  if (frameCount % 3 === 0) { ridges.unshift(A.bands.slice()); if (ridges.length > 28) ridges.pop(); }
+  background(palHue(0), 50, 5);
+  let rowGap = height * 0.5 / 28;
+  fill(palHue(0), 50, 5);
+  strokeWeight(1.5);
+  for (let r = ridges.length - 1; r >= 0; r--) {
+    let row = ridges[r];
+    let y0 = height * 0.38 + (28 - r) * rowGap;
+    stroke(palHue(r < 2 ? 1 : 2), r < 2 ? 80 : 20, 100, map(r, 0, 28, 1, 0.3));
+    beginShape();
+    vertex(width * 0.1, y0);
+    for (let i = 0; i < row.length; i++) {
+      let x = map(i, 0, row.length - 1, width * 0.15, width * 0.85);
+      vertex(x, y0 - row[i] * row[i] * height * 0.3);
+    }
+    vertex(width * 0.9, y0);
+    endShape();
+  }
+}
+
+let sparks = [];
+function sceneBurst() {
+  background(palHue(0), 60, 4, 0.25);
+  if (A.beat) {
+    let n = 60 + A.bass * 120;
+    for (let i = 0; i < n; i++) {
+      let a = random(TWO_PI), sp = random(2, 10) * (0.5 + A.bass);
+      sparks.push({ x: width / 2, y: height / 2, vx: cos(a) * sp, vy: sin(a) * sp, h: palHue(floor(random(3))), life: 1 });
+    }
+  }
+  noStroke();
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    let p = sparks[i];
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life -= 0.015;
+    fill(p.h, 70, 100, p.life);
+    circle(p.x, p.y, 3 + 5 * p.life);
+    if (p.life <= 0) sparks.splice(i, 1);
+  }
+  if (sparks.length > 3000) sparks.splice(0, sparks.length - 3000);
+}
+
+const SCENES = [
+  { name: 'Pulse', draw: scenePulse },
+  { name: 'Tunnel', draw: sceneTunnel },
+  { name: 'Scope', draw: sceneScope },
+  { name: 'Stars', draw: sceneStars },
+  { name: 'Ridges', draw: sceneRidges },
+  { name: 'Burst', draw: sceneBurst },
+];
+
+// ================= OVERLAYS =================
+function drawTitleCard() {
+  let age = (millis() - cardStart) / 1000;
+  if (age > 5) return;
+  let a = min(1, age / 0.4, (5 - age) / 0.8);   // fade in 0.4s, hold, fade out 0.8s
+  let tr = SETLIST[track];
+  let s = min(width, height);
+  noStroke();
+  textAlign(LEFT, BASELINE);
+  fill(0, 0, 100, a);
+  textStyle(BOLD);
+  textSize(s * 0.07);
+  text(tr.title, width * 0.06, height * 0.84);
+  textStyle(NORMAL);
+  textSize(s * 0.035);
+  fill(palHue(1), 60, 100, a);
+  text(tr.artist + '   ·   ' + DJ_NAME, width * 0.06, height * 0.84 + s * 0.055);
+}
+
+function drawHud() {
+  noStroke();
+  fill(0, 0, 0, 0.6);
+  rect(0, height - 26, width, 26);
+  fill(0, 0, 100);
+  textAlign(LEFT, BASELINE);
+  textStyle(NORMAL);
+  textSize(12);
+  let src = song ? (song.isPlaying() ? 'FILE ▶' : 'FILE ❚❚ click') : 'LIVE';
+  let tempo = useTap ? 'TAP ' + round(60000 / tapMs) + 'bpm' : 'AUTO sens ' + nf(sens, 1, 2);
+  text((track + 1) + '/' + SETLIST.length + ' ' + SETLIST[track].title + ' · ' + SCENES[scene].name +
+       ' · pal ' + pal + ' · ' + src + ' · ' + tempo + ' · ' + round(frameRate()) + 'fps' +
+       (blackout ? ' · BLACKOUT' : '') +
+       '    [N/B track · 1-9 scene · P pal · T tap · G auto · ↑↓ sens · S strobe · space black · F full · H hud]',
+       8, height - 9);
+  // beat light
+  fill(A.kick > 0.5 ? color(palHue(0), 80, 100) : color(0, 0, 30));
+  circle(width - 14, height - 13, 10);
+}
+
+// ================= MAIN =================
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  colorMode(HSB);
+  setupAudio();
+  goToTrack(0);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function draw() {
+  updateAudio();
+
+  push();
+  SCENES[scene].draw();
+  pop();
+
+  drawTitleCard();
+
+  if (fade > 0.01) { background(0, 0, 0, fade); fade *= 0.9; }
+  if (keyIsDown(83) && frameCount % 6 < 3) background(0, 0, 100);   // 83 = S key
+  if (blackout) background(0);
+  if (showHud) drawHud();
+}
+
+// ================= CONTROLS =================
+function keyPressed() {
+  if (key >= '1' && key <= '9' && int(key) <= SCENES.length) { scene = int(key) - 1; fade = 0.6; }
+  if (key === 'n' || key === 'N') goToTrack(track + 1);
+  if (key === 'b' || key === 'B') goToTrack(track - 1);
+  if (key === 'p' || key === 'P') pal = (pal + 1) % PALETTES.length;
+  if (key === 't' || key === 'T') tapTempo();
+  if (key === 'g' || key === 'G') useTap = false;
+  if (keyCode === UP_ARROW) sens += 0.05;
+  if (keyCode === DOWN_ARROW) sens = max(1.0, sens - 0.05);
+  if (key === ' ') blackout = !blackout;
+  if (keyCode === ENTER) cardStart = millis();
+  if (key === 'h' || key === 'H') showHud = !showHud;
+  if (key === 'f' || key === 'F') fullscreen(!fullscreen());
+  return false;   // stop the browser from scrolling on space/arrows
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song) { if (song.isPlaying()) song.pause(); else song.loop(); }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>Architecture recap</h2>
+  <ul>
+    <li><strong><code>SETLIST</code> is data, not code.</strong> Changing the set before a gig means editing a list, not rewriting logic. That separation is a real software-design skill, and worth mentioning in your portfolio write-up.</li>
+    <li><strong><code>goToTrack()</code></strong> applies a track's settings and triggers the transition and title card. You press <kbd>N</kbd> as the DJ mixes into the next track.</li>
+    <li><strong>Two beat sources.</strong> Automatic detection works most of the time. When it struggles (busy breaks, ambient tracks, a noisy room), tap <kbd>T</kbd> on the beat 4 times and the engine switches to a steady tempo clock. Press <kbd>G</kbd> to go back to automatic.</li>
+    <li><strong>Overlays are drawn in a fixed order</strong>: scene → title card → transition fade → strobe → blackout → HUD. Blackout always wins, so it's always safe.</li>
+  </ul>
+
+  <h2>Scene recipes for your own designs</h2>
+  <div class="split">
+    <div class="box">
+      <h3>Kaleidoscope</h3>
+<pre class="snippet">translate(width/2, height/2);
+for (let k = 0; k &lt; 8; k++) {
+  push();
+  rotate(TWO_PI * k / 8);
+  if (k % 2) scale(1, -1);  // mirror
+  drawSlice();              // anything!
+  pop();
+}</pre>
+    </div>
+    <div class="box">
+      <h3>Pulsing typography</h3>
+<pre class="snippet">textAlign(CENTER, CENTER);
+textStyle(BOLD);
+textSize(min(width, height) * (0.15 + A.kick * 0.1));
+fill(palHue(0), 80, 100);
+text(SETLIST[track].title.toUpperCase(),
+     width / 2, height / 2);</pre>
+    </div>
+    <div class="box">
+      <h3>Barcode strobe</h3>
+<pre class="snippet">background(0);
+noStroke();
+randomSeed(A.beats);    // new pattern each beat
+for (let x = 0; x &lt; width; x += random(4, 40)) {
+  fill(0, 0, random() &lt; A.treble ? 100 : 0);
+  rect(x, 0, random(2, 20), height);
+}</pre>
+    </div>
+    <div class="box">
+      <h3>Noise terrain grid</h3>
+<pre class="snippet">// rows of lines whose height comes from
+// noise(x * 0.01, y * 0.05, frameCount * 0.01)
+// multiplied by A.bass — with rows further
+// "back" drawn smaller and higher up
+// to fake 3D perspective.</pre>
+    </div>
+  </div>
+
+  <div class="callout callout--dj">
+    <strong>On the night</strong>
+    Open the <strong>exported file</strong> rather than this website, so a dropped Wi-Fi connection can't break anything. Choose "Use mic / line-in", allow microphone access, drag the window to the projector and press <kbd>F</kbd> and <kbd>H</kbd>. Keep one hand near <kbd>Space</kbd> (blackout) and <kbd>N</kbd> (next track). Bring a USB stick with the file as a backup.
+  </div>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

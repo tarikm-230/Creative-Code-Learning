@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 · Beats, Smoothing & Events — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="09" data-root=".." data-audio>
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div id="audio-bar-slot"></div>
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Beats, Smoothing &amp; Events</h1>
+  <p class="lead">This is the lesson that turns "it wiggles with the music" into "it <em>hits</em> with the music". You'll make values punchy but not jittery, detect kicks, and trigger events on the beat and on the drop.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to smooth values with <code>lerp</code>, plus the <strong>attack/release</strong> envelope (the pro technique)</li>
+      <li>How to detect beats by comparing energy against a running average</li>
+      <li>How to turn beats into <strong>events</strong>: bursts, flashes, color changes, and counting bars and phrases</li>
+      <li>How to tell a breakdown from a drop using slow energy</li>
+    </ul>
+  </div>
+
+  <h2>The jitter problem</h2>
+  <p>Raw audio values change sharply from frame to frame, so visuals that use them directly look nervous. Simple smoothing with <code>lerp</code> (lesson 05) calms them down, but it also makes them <em>slow</em>, so the kick loses its punch.</p>
+  <p>The fix comes from audio engineering. It's an <strong>envelope follower</strong>: <strong>rise fast</strong> when the value goes up (the <em>attack</em>), and <strong>fall slowly</strong> when it goes down (the <em>release</em>). You get the instant hit followed by a smooth decay. That's what makes visuals feel "punchy".</p>
+<pre class="snippet">function follow(current, target, attack, release) {
+  if (target &gt; current) {
+    return lerp(current, target, attack);    // e.g. 0.6  → snaps up
+  } else {
+    return lerp(current, target, release);   // e.g. 0.08 → glides down
+  }
+}</pre>
+</div>
+
+<div class="pg wide" data-id="09-smooth" data-title="Raw vs lerp vs attack/release" data-audio>
+<textarea>
+let song, fft;
+let smoothVal = 0, envVal = 0;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 300);
+  fft = new p5.FFT(0.6);
+  colorMode(HSB);
+  textAlign(CENTER);
+}
+
+function follow(current, target, attack, release) {
+  return target > current ? lerp(current, target, attack) : lerp(current, target, release);
+}
+
+function draw() {
+  background(240, 40, 8);
+  fft.analyze();
+  let raw = fft.getEnergy('bass');            // 0..255
+
+  smoothVal = lerp(smoothVal, raw, 0.1);       // plain smoothing
+  envVal = follow(envVal, raw, 0.6, 0.08);     // attack / release
+
+  drawMeter(120, raw, 'raw', 0);
+  drawMeter(300, smoothVal, 'lerp 0.1', 50);
+  drawMeter(480, envVal, 'attack/release', 160);
+
+  fill(0, 0, 100);
+  if (!song.isPlaying()) text('click to play', width / 2, 24);
+}
+
+function drawMeter(x, v, label, hue) {
+  noStroke();
+  fill(hue, 80, 100);
+  circle(x, 140, map(v, 0, 255, 10, 170));
+  fill(0, 0, 100);
+  text(label, x, 270);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Change the release value from <code>0.08</code> to <code>0.02</code> (long tail), then to <code>0.3</code> (tight).</li>
+      <li>Change the attack to <code>0.2</code>. Feel how the punch softens.</li>
+      <li>Rule of thumb: <strong>bass</strong> elements want attack 0.5–0.8 and release 0.05–0.15. <strong>Color and camera</strong> moves want much slower values (0.02–0.05), so they drift instead of jumping.</li>
+    </ol>
+  </div>
+
+  <h2>Beat detection</h2>
+  <p>A kick drum is a <strong>sudden jump</strong> in bass energy. "Loud" alone isn't enough, because a track can be loud the whole way through. So we compare the current bass to its <strong>recent average</strong>:</p>
+<pre class="snippet">bassAvg = lerp(bassAvg, bass, 0.05);          // slow-moving average
+let isBeat = bass &gt; bassAvg * SENSITIVITY     // clearly above average…
+          &amp;&amp; bass &gt; MIN_LEVEL                // …and not just quiet noise…
+          &amp;&amp; millis() - lastBeat &gt; 250;      // …and not right after the last beat</pre>
+  <p>The <strong>cooldown</strong> (250 ms, a little faster than 1/8 notes at 128 BPM) stops one kick from counting twice. The graph below shows the bass energy (pink), the threshold line (white), and a flash whenever a beat is detected. Use <kbd>↑</kbd> and <kbd>↓</kbd> to tune the sensitivity live.</p>
+</div>
+
+<div class="pg wide" data-id="09-beat" data-title="Beat detector, visualized" data-audio>
+<textarea>
+let song, fft;
+let bassAvg = 0, lastBeat = 0, beatCount = 0, flash = 0;
+let SENSITIVITY = 1.25;
+const MIN_LEVEL = 100;
+let history = [];
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 300);
+  fft = new p5.FFT(0.5);       // less smoothing = sharper onsets
+}
+
+function detectBeat(bass) {
+  bassAvg = lerp(bassAvg, bass, 0.05);
+  let isBeat = bass > bassAvg * SENSITIVITY && bass > MIN_LEVEL && millis() - lastBeat > 250;
+  if (isBeat) lastBeat = millis();
+  return isBeat;
+}
+
+function draw() {
+  fft.analyze();
+  let bass = fft.getEnergy('bass');
+  let beat = detectBeat(bass);
+
+  if (beat) { beatCount++; flash = 255; }
+  flash *= 0.85;
+  background(flash * 0.4, flash * 0.15, flash * 0.3 + 15);
+
+  history.push({ bass, thr: bassAvg * SENSITIVITY, beat });
+  if (history.length > width) history.shift();
+
+  // graph
+  noFill();
+  stroke(255, 111, 174); strokeWeight(2);
+  beginShape();
+  for (let i = 0; i < history.length; i++) vertex(i, height - history[i].bass);
+  endShape();
+  stroke(255, 150); strokeWeight(1);
+  beginShape();
+  for (let i = 0; i < history.length; i++) vertex(i, height - history[i].thr);
+  endShape();
+  stroke(124, 246, 200);
+  for (let i = 0; i < history.length; i++) if (history[i].beat) line(i, 0, i, 20);
+
+  noStroke(); fill(255);
+  text('beats: ' + beatCount + '   sensitivity: ' + nf(SENSITIVITY, 1, 2) + '  (↑ ↓)', 10, 40);
+  if (!song.isPlaying()) text('click to play', 10, 60);
+}
+
+function keyPressed() {
+  if (keyCode === UP_ARROW) SENSITIVITY += 0.05;
+  if (keyCode === DOWN_ARROW) SENSITIVITY = max(1.0, SENSITIVITY - 0.05);
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout callout--warn">
+    <strong>No beat detector is perfect</strong>
+    It will miss some kicks in busy mixes and sometimes fire on a heavy bassline. That's normal. Professional VJ software has the same problem. Three ways to cope: tune the sensitivity for each track, design visuals that look fine even when a beat is missed, and (in the Setlist Engine) add a <strong>tap-tempo</strong> backup.
+  </div>
+
+  <h2>From beats to events</h2>
+  <p>A detected beat is an <strong>event</strong>, a moment when you can <em>do</em> something. Counting beats unlocks musical structure: 4 beats = 1 bar, and 16 bars = a typical phrase, which is where DJ tracks usually change.</p>
+  <ul>
+    <li><strong>Every beat</strong>: a burst of particles, a flash, a scale "kick"</li>
+    <li><strong>Every 4 beats</strong> (one bar): move to the next color in the palette</li>
+    <li><strong>Every 32 beats</strong> (8 bars): change the shape or camera angle</li>
+    <li><strong>Hi-hats</strong> (treble jumps): small sparkles. Use the same detection on <code>'treble'</code></li>
+  </ul>
+</div>
+
+<div class="pg wide" data-id="09-events" data-title="Beat events: bursts, bars & sparkles" data-audio>
+<textarea>
+let song, fft;
+let particles = [];
+let bassAvg = 0, lastBeat = 0, beatCount = 0;
+let trebAvg = 0, lastHat = 0;
+let palette = [330, 20, 190, 270];
+let kick = 0;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 400);
+  fft = new p5.FFT(0.5);
+  colorMode(HSB);
+}
+
+function draw() {
+  fft.analyze();
+  let bass = fft.getEnergy('bass');
+  let treble = fft.getEnergy('treble');
+
+  // --- detect ---
+  bassAvg = lerp(bassAvg, bass, 0.05);
+  let beat = bass > bassAvg * 1.25 && bass > 100 && millis() - lastBeat > 250;
+  if (beat) lastBeat = millis();
+
+  trebAvg = lerp(trebAvg, treble, 0.1);
+  let hat = treble > trebAvg * 1.3 && treble > 30 && millis() - lastHat > 100;
+  if (hat) lastHat = millis();
+
+  // --- react ---
+  let hue = palette[floor(beatCount / 4) % palette.length];   // new color every bar
+  if (beat) {
+    beatCount++;
+    kick = 1;
+    for (let i = 0; i < 40; i++) particles.push(new Spark(width / 2, height / 2, hue, 7));
+  }
+  if (hat) {
+    for (let i = 0; i < 3; i++) particles.push(new Spark(random(width), random(height), (hue + 180) % 360, 1.5));
+  }
+  kick *= 0.88;   // decays after each beat
+
+  background(hue, 60, 10 + kick * 25);
+
+  // center shape: changes every 8 bars (32 beats)
+  let shapeMode = floor(beatCount / 32) % 2;
+  noStroke();
+  fill(hue, 70, 100);
+  let s = 80 + kick * 90;
+  if (shapeMode === 0) circle(width / 2, height / 2, s);
+  else { rectMode(CENTER); square(width / 2, height / 2, s); }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    particles[i].show();
+    if (particles[i].life <= 0) particles.splice(i, 1);
+  }
+
+  fill(0, 0, 100);
+  text('beat ' + beatCount + ' · bar ' + floor(beatCount / 4) + (song.isPlaying() ? '' : ' · click to play'), 10, 20);
+}
+
+class Spark {
+  constructor(x, y, hue, power) {
+    let a = random(TWO_PI), sp = random(1, 4) * power;
+    this.x = x; this.y = y; this.vx = cos(a) * sp; this.vy = sin(a) * sp;
+    this.hue = hue; this.life = 1;
+  }
+  update() { this.x += this.vx; this.y += this.vy; this.vx *= 0.94; this.vy *= 0.94; this.life -= 0.025; }
+  show() { noStroke(); fill(this.hue, 50, 100, this.life); circle(this.x, this.y, 6 * this.life); }
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>Breakdowns and drops</h2>
+  <p>A breakdown is a <em>section</em> where the bass is gone for a while. The drop is the moment it comes back. A <strong>very slow</strong> average of the bass (<code>lerp</code> with 0.01–0.02) tells you which section you're in. When it crosses a threshold, you've found a section change:</p>
+<pre class="snippet">bassSlow = lerp(bassSlow, bass, 0.02);
+let inBreakdown = bassSlow &lt; 70;
+
+if (wasBreakdown &amp;&amp; !inBreakdown) {
+  // 💥 THE DROP — do something huge
+}
+wasBreakdown = inBreakdown;</pre>
+  <p>That last line is the <strong>edge detection</strong> pattern: remember last frame's state, and act only when it <em>changes</em>. You'll use it constantly.</p>
+
+  <div class="challenge">
+    <h3>💥 Challenge: Drop detector (25 min)</h3>
+    <p>Build a sketch with <strong>two moods</strong>:</p>
+    <ul>
+      <li><strong>Breakdown mood</strong>: slow, calm, cool colors. For example, a noise blob that breathes with the <code>mid</code> band (the pads and arpeggio)</li>
+      <li><strong>Main mood</strong>: punchy and warm, reacting to beats</li>
+      <li><strong>On the drop</strong> (breakdown → main): a giant one-off event, like a white flash plus a burst of 300 particles</li>
+      <li>Tip: press <kbd>→</kbd> to jump ahead in the song so you can test the drop quickly. The demo's breakdown starts at 16 s and the drop hits at 20 s</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pg wide" data-id="09-challenge" data-title="Challenge: drop detector" data-audio>
+<textarea>
+let song, fft;
+let bassSlow = 0;
+let wasBreakdown = false;
+
+function preload() {
+  song = loadSound(AUDIO_URL);
+}
+
+function setup() {
+  createCanvas(600, 400);
+  fft = new p5.FFT(0.5);
+  colorMode(HSB);
+}
+
+function draw() {
+  fft.analyze();
+  let bass = fft.getEnergy('bass');
+  bassSlow = lerp(bassSlow, bass, 0.02);
+  let inBreakdown = bassSlow < 70;
+
+  background(0, 0, 8);
+  // your two moods + the drop event here
+
+  wasBreakdown = inBreakdown;
+
+  fill(0, 0, 100);
+  text((inBreakdown ? 'BREAKDOWN' : 'MAIN') + '  bassSlow: ' + round(bassSlow) + '  t: ' + nf(song.currentTime(), 1, 1), 10, 20);
+}
+
+function keyPressed() {
+  if (keyCode === RIGHT_ARROW) song.jump(min(song.currentTime() + 4, song.duration() - 0.1));
+}
+
+function mousePressed() {
+  userStartAudio();
+  if (song.isPlaying()) song.pause(); else song.loop();
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">let flash = 0, sparks = [], env = 0, midEnv = 0;
+
+function draw() {
+  fft.analyze();
+  let bass = fft.getEnergy('bass');
+  let mid = fft.getEnergy('mid');
+  bassSlow = lerp(bassSlow, bass, 0.02);
+  let inBreakdown = bassSlow &lt; 70;
+  env = bass &gt; env ? lerp(env, bass, 0.6) : lerp(env, bass, 0.1);
+  midEnv = lerp(midEnv, mid, 0.05);
+
+  if (wasBreakdown &amp;&amp; !inBreakdown) {          // THE DROP
+    flash = 1;
+    for (let i = 0; i &lt; 300; i++) {
+      let a = random(TWO_PI), s = random(2, 14);
+      sparks.push({ x: width / 2, y: height / 2, vx: cos(a) * s, vy: sin(a) * s, life: 1 });
+    }
+  }
+  wasBreakdown = inBreakdown;
+
+  if (inBreakdown) {
+    background(220, 60, 12);
+    translate(width / 2, height / 2);
+    fill(200, 50, 90, 0.8);
+    noStroke();
+    beginShape();
+    for (let a = 0; a &lt; TWO_PI; a += 0.05) {
+      let r = 60 + midEnv * 0.6 + 40 * noise(cos(a) + 1, sin(a) + 1, frameCount * 0.01);
+      vertex(r * cos(a), r * sin(a));
+    }
+    endShape(CLOSE);
+    resetMatrix();
+  } else {
+    background(15, 80, 10 + env * 0.1);
+    fill(20, 90, 100);
+    noStroke();
+    circle(width / 2, height / 2, 60 + env);
+  }
+
+  for (let i = sparks.length - 1; i &gt;= 0; i--) {
+    let p = sparks[i];
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life -= 0.012;
+    fill(40, 30, 100, p.life);
+    circle(p.x, p.y, 5);
+    if (p.life &lt;= 0) sparks.splice(i, 1);
+  }
+
+  if (flash &gt; 0.01) { background(0, 0, 100, flash); flash *= 0.9; }
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/demo-audio.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>
