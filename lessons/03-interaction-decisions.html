@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 · Interaction & Decisions — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="03" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Interaction &amp; Decisions</h1>
+  <p class="lead">Live visuals need controls. In this lesson your sketch starts reacting to the mouse and keyboard, and starts making decisions with <code>if</code>.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How <code>if</code>/<code>else</code> works, plus comparisons and combining conditions</li>
+      <li>How to use the event functions <code>mousePressed()</code> and <code>keyPressed()</code></li>
+      <li>How to build toggles with <code>true</code>/<code>false</code> variables</li>
+      <li>How to use <code>map()</code> and <code>constrain()</code>, the most useful functions in audio-visual work</li>
+    </ul>
+  </div>
+
+  <h2>if / else</h2>
+<pre class="snippet">if (condition) {
+  // runs only when the condition is true
+} else {
+  // runs otherwise
+}</pre>
+  <table class="ref">
+    <tr><th>Comparison</th><th>Means</th></tr>
+    <tr><td><code>a &gt; b</code>, <code>a &lt; b</code></td><td>greater than, less than</td></tr>
+    <tr><td><code>a &gt;= b</code>, <code>a &lt;= b</code></td><td>greater than or equal, less than or equal</td></tr>
+    <tr><td><code>a === b</code></td><td>equal (three = signs. A single <code>=</code> <em>assigns</em> a value)</td></tr>
+    <tr><td><code>a !== b</code></td><td>not equal</td></tr>
+    <tr><td><code>c1 &amp;&amp; c2</code></td><td>both are true (AND)</td></tr>
+    <tr><td><code>c1 || c2</code></td><td>at least one is true (OR)</td></tr>
+    <tr><td><code>!c</code></td><td>the opposite (NOT)</td></tr>
+  </table>
+</div>
+
+<div class="pg wide" data-id="03-bounce" data-title="Bouncing ball">
+<textarea>
+let x = 200, y = 120;
+let vx = 4, vy = 2.5;   // velocity: how far to move each frame
+
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(20, 20, 30, 60);
+
+  x += vx;
+  y += vy;
+
+  // hit a side wall? reverse horizontal direction
+  if (x < 20 || x > width - 20) {
+    vx = -vx;
+  }
+  // hit the floor or ceiling? reverse vertical direction
+  if (y < 20 || y > height - 20) {
+    vy = -vy;
+  }
+
+  // left half: pink, right half: mint
+  if (x < width / 2) {
+    fill(255, 111, 174);
+  } else {
+    fill(124, 246, 200);
+  }
+  noStroke();
+  circle(x, y, 40);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>Mouse and keyboard</h2>
+  <p>There are two ways to read input:</p>
+  <ul>
+    <li><strong>Checking every frame</strong>, inside <code>draw()</code>: <code>mouseIsPressed</code> and <code>keyIsPressed</code> are <code>true</code> while a button or key is held down. Use these for things that last as long as you hold, like a strobe.</li>
+    <li><strong>Event functions</strong> that p5 calls <em>once</em> per press: <code>mousePressed()</code> and <code>keyPressed()</code>. Inside <code>keyPressed()</code>, the variable <code>key</code> tells you which key was pressed. Use these for switches, like changing scenes.</li>
+  </ul>
+  <div class="callout callout--warn">
+    <strong>Click the output first</strong>
+    Keyboard input only reaches the sketch after you click on its output area, because that gives it "focus". This is true for every sketch on this site.
+  </div>
+  <h2>Toggles: switches that remember</h2>
+  <p>A <strong>boolean</strong> variable is either <code>true</code> or <code>false</code>. <code>flag = !flag</code> flips it. That's how you build an on/off switch.</p>
+</div>
+
+<div class="pg wide" data-id="03-keys" data-title="Keyboard VJ controls">
+<textarea>
+let hue = 300;
+let showRing = true;
+let mode = 1;
+
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  // hold the mouse button down for a strobe
+  if (mouseIsPressed && frameCount % 4 < 2) {
+    background(0, 0, 100);
+  } else {
+    background(hue, 60, 15);
+  }
+
+  noStroke();
+  fill(hue, 80, 100);
+
+  if (mode === 1) {
+    circle(width / 2, height / 2, 160);
+  } else if (mode === 2) {
+    rectMode(CENTER);
+    square(width / 2, height / 2, 160);
+  } else if (mode === 3) {
+    triangle(200, 110, 290, 270, 110, 270);
+  }
+
+  if (showRing) {
+    noFill();
+    stroke((hue + 180) % 360, 80, 100);   // opposite hue
+    strokeWeight(6);
+    circle(width / 2, height / 2, 260);
+  }
+
+  noStroke();
+  fill(0, 0, 100);
+  textSize(13);
+  text('click here first · keys 1 2 3: shape · R: ring · ← →: hue · hold mouse: strobe', 10, 390);
+}
+
+function keyPressed() {
+  if (key === '1') mode = 1;
+  if (key === '2') mode = 2;
+  if (key === '3') mode = 3;
+  if (key === 'r' || key === 'R') showRing = !showRing;   // toggle
+  if (keyCode === LEFT_ARROW) hue = (hue + 330) % 360;   // -30, wrapping around
+  if (keyCode === RIGHT_ARROW) hue = (hue + 30) % 360;
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <p>A new trick appeared in that sketch: when an <code>if</code> controls only <strong>one</strong> statement, you can leave out the curly braces, as in <code>if (key === '1') mode = 1;</code>. For arrow keys and other special keys, check <code>keyCode</code> instead of <code>key</code>.</p>
+
+  <h2>map(): the most important function in this course</h2>
+  <p>Audio-reactive visuals are mostly about <strong>turning one range of numbers into another</strong>. For example, loudness goes from 0 to 1, but you want a size from 50 to 400. Or the mouse goes from 0 to <code>width</code>, but you want a hue from 0 to 360.</p>
+<pre class="snippet">map(value, inMin, inMax, outMin, outMax)
+
+map(mouseX, 0, width, 0, 360)   // mouse position → hue
+map(level, 0, 1, 50, 400)        // loudness → size (lesson 07!)</pre>
+  <p><code>map()</code> doesn't stop at the edges, so a value outside the input range gives a result outside the output range. Wrap it in <code>constrain(value, min, max)</code> to keep it inside, or pass <code>true</code> as a 6th argument to <code>map()</code>.</p>
+</div>
+
+<div class="pg wide" data-id="03-map" data-title="map() playground">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  // mouse X → hue, mouse Y → size
+  let hue = map(mouseX, 0, width, 0, 360, true);
+  let size = map(mouseY, 0, height, 20, 380, true);
+
+  background(hue, 30, 20);
+  noStroke();
+  fill(hue, 80, 100);
+  circle(width / 2, height / 2, size);
+
+  // number of rings → constrain between 1 and 8
+  let rings = constrain(floor(size / 40), 1, 8);
+  noFill();
+  stroke(0, 0, 100, 0.5);
+  for (let i = 1; i <= rings; i++) {   // a loop! next lesson explains it
+    circle(width / 2, height / 2, size + i * 12);
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="challenge">
+    <h3>🎛 Challenge: Mini VJ controller (20 min)</h3>
+    <p>Build a sketch you could actually "play":</p>
+    <ul>
+      <li><kbd>Space</kbd> toggles a <strong>blackout</strong> (black screen) on and off. Hint: <code>key === ' '</code></li>
+      <li>Keys <kbd>1</kbd>–<kbd>3</kbd> pick one of three <strong>color palettes</strong> (three different base hues)</li>
+      <li>The mouse's x position controls the <strong>size</strong> of the main shape, using <code>map()</code></li>
+      <li>Each mouse click adds one <strong>extra ring</strong> around the shape, up to 10, then goes back to 0</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pg wide" data-id="03-challenge" data-title="Challenge: mini VJ controller">
+<textarea>
+let blackout = false;
+let base = 200;
+let rings = 0;
+
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(0);
+  // your code here
+}
+
+function keyPressed() {
+  // your code here
+}
+
+function mousePressed() {
+  // your code here
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">function draw() {
+  background(0);
+  if (blackout) return;   // "return" leaves draw() early: nothing else is drawn
+
+  let size = map(mouseX, 0, width, 40, 300, true);
+  background(base, 50, 15);
+  noStroke();
+  fill(base, 80, 100);
+  circle(width / 2, height / 2, size);
+
+  noFill();
+  stroke((base + 180) % 360, 70, 100);
+  strokeWeight(3);
+  for (let i = 1; i <= rings; i++) {
+    circle(width / 2, height / 2, size + i * 16);
+  }
+}
+
+function keyPressed() {
+  if (key === ' ') blackout = !blackout;
+  if (key === '1') base = 200;
+  if (key === '2') base = 320;
+  if (key === '3') base = 40;
+}
+
+function mousePressed() {
+  rings = rings + 1;
+  if (rings > 10) rings = 0;
+}</pre>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 · Canvas, Shapes & Color — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="01" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Canvas, Shapes &amp; Color</h1>
+  <p class="lead">Every visual you'll ever make, including a full-screen drop explosion, is built from a few shapes drawn on a grid of pixels. This lesson teaches you that grid.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How the canvas coordinate system works</li>
+      <li>How to draw shapes: <code>rect</code>, <code>circle</code>, <code>ellipse</code>, <code>line</code>, <code>triangle</code>, <code>arc</code></li>
+      <li>How to style them: <code>fill</code>, <code>stroke</code>, <code>strokeWeight</code>, transparency</li>
+      <li>How to use HSB color, the easiest way to build color palettes</li>
+    </ul>
+  </div>
+
+  <h2>The coordinate system</h2>
+  <p><code>createCanvas(400, 400)</code> makes a canvas 400 pixels wide and 400 pixels tall. Every point on it has an <strong>x</strong> (how far from the left) and a <strong>y</strong> (how far from the top).</p>
+  <svg class="diagram" viewBox="0 0 460 300" width="460" role="img" aria-label="Coordinate grid: origin top-left, x increases right, y increases down">
+    <rect x="40" y="30" width="380" height="240" fill="#13151c" stroke="#2a2f3e"/>
+    <g stroke="#2a2f3e" stroke-width="1">
+      <line x1="135" y1="30" x2="135" y2="270"/><line x1="230" y1="30" x2="230" y2="270"/><line x1="325" y1="30" x2="325" y2="270"/>
+      <line x1="40" y1="90" x2="420" y2="90"/><line x1="40" y1="150" x2="420" y2="150"/><line x1="40" y1="210" x2="420" y2="210"/>
+    </g>
+    <circle cx="40" cy="30" r="6" fill="#7cf6c8"/>
+    <text x="50" y="22" fill="#7cf6c8" font-family="monospace" font-size="14">(0, 0)</text>
+    <path d="M60 50 H180" stroke="#ff6fae" stroke-width="3" marker-end="url(#ah)"/>
+    <text x="190" y="55" fill="#ff6fae" font-family="monospace" font-size="14">x grows →</text>
+    <path d="M60 50 V160" stroke="#ffc861" stroke-width="3" marker-end="url(#ah2)"/>
+    <text x="48" y="182" fill="#ffc861" font-family="monospace" font-size="14">y grows ↓</text>
+    <circle cx="325" cy="210" r="6" fill="#7fb3ff"/>
+    <text x="240" y="235" fill="#7fb3ff" font-family="monospace" font-size="14">(300, 300)</text>
+    <text x="330" y="290" fill="#9aa1b6" font-family="monospace" font-size="13">(width, height)</text>
+    <defs>
+      <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#ff6fae"/></marker>
+      <marker id="ah2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#ffc861"/></marker>
+    </defs>
+  </svg>
+  <div class="callout callout--warn">
+    <strong>The one surprise</strong>
+    In school math, y goes <em>up</em>. On screens, <strong>y goes down</strong>, so <code>y = 0</code> is the top edge. Everyone gets caught by this at least once.
+  </div>
+  <p>p5 gives you two handy built-in variables: <code>width</code> and <code>height</code>. The center of any canvas is always <code>(width / 2, height / 2)</code>. Use them instead of typing numbers, and your sketch will still work when you go full-screen later.</p>
+
+  <h2>Shapes</h2>
+  <p>Each shape function takes numbers, called <strong>arguments</strong>, inside its brackets:</p>
+  <table class="ref">
+    <tr><th>Code</th><th>Draws</th></tr>
+    <tr><td><code>rect(x, y, w, h)</code></td><td>Rectangle. By default, (x, y) is its <strong>top-left</strong> corner</td></tr>
+    <tr><td><code>square(x, y, size)</code></td><td>Square</td></tr>
+    <tr><td><code>circle(x, y, d)</code></td><td>Circle. (x, y) is its <strong>center</strong> and d is its diameter</td></tr>
+    <tr><td><code>ellipse(x, y, w, h)</code></td><td>Oval</td></tr>
+    <tr><td><code>line(x1, y1, x2, y2)</code></td><td>Line between two points</td></tr>
+    <tr><td><code>triangle(x1, y1, x2, y2, x3, y3)</code></td><td>Triangle with three corners</td></tr>
+    <tr><td><code>arc(x, y, w, h, start, stop)</code></td><td>Slice of an ellipse. Angles are in radians: <code>PI</code> is half a turn</td></tr>
+    <tr><td><code>point(x, y)</code></td><td>A single dot (its size comes from <code>strokeWeight</code>)</td></tr>
+  </table>
+</div>
+
+<div class="pg wide" data-id="01-shapes" data-title="Shapes on the grid">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(25);          // one number = grayscale (0 black … 255 white)
+
+  rect(40, 40, 120, 80);   // x, y, width, height
+  circle(280, 80, 100);    // x, y, diameter
+  ellipse(100, 220, 140, 60);
+  line(200, 160, 360, 300);
+  triangle(60, 360, 140, 280, 220, 360);
+  arc(300, 330, 100, 100, PI, TWO_PI); // top half of a circle
+
+  // a point is a tiny dot; strokeWeight makes it bigger
+  stroke(255);
+  strokeWeight(10);
+  point(width / 2, height / 2);
+  strokeWeight(1);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Move the circle to the exact center of the canvas using <code>width / 2</code> and <code>height / 2</code>.</li>
+      <li>Add <code>rectMode(CENTER);</code> as the first line in <code>draw()</code>. What happens to the rectangle? Now (x, y) is its center, which is often easier to work with.</li>
+      <li>Draw a smiley face with one <code>circle</code>, two smaller circles and an <code>arc</code> (try <code>arc(200, 220, 120, 80, 0, PI)</code>).</li>
+    </ol>
+  </div>
+
+  <h2>Color: fill, stroke and transparency</h2>
+  <p>Style functions work like <strong>paint brushes you pick up</strong>. Once you call <code>fill()</code>, <em>every</em> shape after it uses that color until you change it again.</p>
+  <ul>
+    <li><code>fill(r, g, b)</code> sets the inside color. Each value goes from 0 to 255.</li>
+    <li><code>stroke(r, g, b)</code> sets the outline color, and <code>strokeWeight(n)</code> sets its thickness.</li>
+    <li><code>noFill()</code> and <code>noStroke()</code> turn them off.</li>
+    <li>Add a 4th number for <strong>alpha</strong> (opacity): <code>fill(255, 0, 100, 120)</code> is semi-transparent pink.</li>
+    <li>You can also use web colors: <code>fill('#ff6fae')</code> or <code>fill('hotpink')</code>.</li>
+  </ul>
+</div>
+
+<div class="pg wide" data-id="01-color" data-title="Fill, stroke & alpha">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(15, 15, 25);
+
+  // three overlapping, semi-transparent circles: like stage lights
+  noStroke();
+  fill(255, 60, 120, 160);   // red-ish, alpha 160
+  circle(160, 160, 180);
+
+  fill(60, 200, 255, 160);   // blue-ish
+  circle(240, 160, 180);
+
+  fill(120, 255, 160, 160);  // green-ish
+  circle(200, 240, 180);
+
+  // outlines only
+  noFill();
+  stroke('#ffc861');
+  strokeWeight(6);
+  rect(30, 30, 340, 340, 20); // the 5th number rounds the corners
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <h2>HSB: color the way artists think</h2>
+  <p>RGB is how screens work, but it's hard to guess. (Quick: what's "a slightly darker orange" in RGB?) <strong>HSB</strong> describes color the way people do:</p>
+  <ul>
+    <li><strong>H</strong>ue: <em>which</em> color, as an angle around the color wheel from 0 to 360 (0 red, 120 green, 240 blue)</li>
+    <li><strong>S</strong>aturation: how vivid it is, from 0 (gray) to 100 (pure)</li>
+    <li><strong>B</strong>rightness: from 0 (black) to 100 (full)</li>
+  </ul>
+  <p>Switch modes with <code>colorMode(HSB)</code>. From then on <code>fill(200, 80, 100)</code> means "vivid, bright sky-blue". To get a darker version, lower the last number. To get a matching color, add 30 to the hue. HSB makes palettes easy, and later you'll drive hue from the music.</p>
+</div>
+
+<div class="pg wide" data-id="01-hsb" data-title="HSB palette">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);  // hue 0-360, saturation 0-100, brightness 0-100
+}
+
+function draw() {
+  background(240, 40, 10);  // very dark blue
+
+  let base = 320;           // try changing this one number!
+
+  noStroke();
+  fill(base, 80, 100);
+  rect(0, 0, 400, 100);
+
+  fill(base + 30, 80, 100); // a neighbour on the color wheel
+  rect(0, 100, 400, 100);
+
+  fill(base + 60, 80, 100);
+  rect(0, 200, 400, 100);
+
+  fill(base + 180, 80, 100); // the opposite color (complementary)
+  circle(200, 340, 80);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout callout--tip">
+    <strong>Why this matters for DJ visuals</strong>
+    Club visuals usually look best with <strong>2–3 related hues</strong> plus black, rather than a full rainbow. Pick a base hue for each track, then build everything from <code>base</code>, <code>base + 30</code> and <code>base + 180</code>. You'll use this idea in the Setlist Engine.
+  </div>
+
+  <div class="callout">
+    <strong>Hue wraps around</strong>
+    If <code>base + 60</code> goes past 360, p5 limits it to 360 (red) instead of wrapping. Use <code>(base + 60) % 360</code> to wrap it properly. <code>%</code> means "remainder after dividing", and you'll see it again in the next lesson.
+  </div>
+
+  <div class="challenge">
+    <h3>🎨 Challenge: Cover art (15–20 min)</h3>
+    <p>Design a 400×400 <strong>cover for a track</strong> your DJ friend plays, using only shapes and color. Requirements:</p>
+    <ul>
+      <li>At least 6 shapes, using at least 3 different shape types</li>
+      <li>Use <code>colorMode(HSB)</code> and a palette built from one base hue</li>
+      <li>Use transparency at least once</li>
+      <li>Use <code>width</code> and <code>height</code> for at least the main element's position</li>
+    </ul>
+    <p>Export it with <strong>⤓ Export</strong>. This is a small, early portfolio piece, and you'll animate it later.</p>
+  </div>
+</div>
+
+<div class="pg wide" data-id="01-challenge" data-title="Challenge: cover art">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(0, 0, 8);
+
+  // your cover art here
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  let base = 280;
+  background(base, 60, 12);
+  noStroke();
+
+  // sun / record
+  fill(base + 40, 70, 100);
+  circle(width / 2, height / 2, 260);
+  fill(base, 60, 12);
+  circle(width / 2, height / 2, 40);
+
+  // horizon stripes cutting through the sun
+  fill(base, 60, 12);
+  rect(0, 230, width, 8);
+  rect(0, 255, width, 12);
+  rect(0, 285, width, 16);
+
+  // overlapping transparent triangles = mountains
+  fill(base + 180, 60, 90, 0.6);  // in HSB, alpha goes 0–1
+  triangle(0, 400, 120, 250, 260, 400);
+  fill(base + 150, 60, 70, 0.6);
+  triangle(140, 400, 300, 220, 400, 400);
+
+  // title bar
+  fill(0, 0, 100);
+  rect(30, 30, 140, 6);
+}</pre>
+    <p class="muted">Note: in HSB mode, alpha goes from 0 to 1 instead of 0 to 255.</p>
+  </details>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

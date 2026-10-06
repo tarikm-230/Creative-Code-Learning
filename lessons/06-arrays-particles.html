@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 · Arrays, Objects & Particles — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="06" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Arrays, Objects &amp; Particles</h1>
+  <p class="lead">Confetti on the drop, sparks on every kick, stars rushing past: these are all particle systems. They're hundreds of little things, each with its own position and speed, that are born, move, fade and die. This is the last core coding lesson before sound.</p>
+
+  <div class="goals">
+    <h3>You will learn</h3>
+    <ul>
+      <li>How to use <strong>arrays</strong> (lists): create, add with <code>push</code>, loop over, remove with <code>splice</code></li>
+      <li>How to group related values into <strong>objects</strong> <code>{ x: 10, y: 20 }</code></li>
+      <li>How to write <strong>classes</strong>: a blueprint for making many similar objects</li>
+      <li>How to build a complete particle system</li>
+    </ul>
+  </div>
+
+  <h2>Arrays: lists of values</h2>
+<pre class="snippet">let sizes = [20, 45, 80];   // an array with 3 numbers
+sizes[0]                    // → 20   (counting starts at 0!)
+sizes.length                // → 3
+sizes.push(120);            // add to the end → [20, 45, 80, 120]
+
+for (let i = 0; i &lt; sizes.length; i++) {
+  circle(50 + i * 90, 200, sizes[i]);
+}</pre>
+  <p>Arrays are perfect for <strong>history</strong>. Store the last 100 mouse positions (or, later, loudness values) and draw them all:</p>
+</div>
+
+<div class="pg wide" data-id="06-history" data-title="Remembering the past">
+<textarea>
+let history = [];   // empty list
+
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(240, 40, 8);
+
+  // add the current mouse position as an object { x, y }
+  history.push({ x: mouseX, y: mouseY });
+
+  // keep only the last 60 entries
+  if (history.length > 60) {
+    history.shift();   // removes the FIRST (oldest) element
+  }
+
+  noStroke();
+  for (let i = 0; i < history.length; i++) {
+    let p = history[i];
+    let age = i / history.length;   // 0 = oldest … 1 = newest
+    fill(280 + age * 60, 80, 100, age);
+    circle(p.x, p.y, 4 + age * 30);
+  }
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <p><code>{ x: mouseX, y: mouseY }</code> is an <strong>object</strong>: a bundle of named values. You read them with a dot, as in <code>p.x</code> and <code>p.y</code>.</p>
+
+  <h2>Classes: blueprints for things</h2>
+  <p>A particle needs a position, a velocity, a color and a lifespan, plus behavior: move, draw, and "am I dead?". A <strong>class</strong> bundles that data and behavior together. You write it once and create as many as you want with <code>new</code>.</p>
+<pre class="snippet">class Particle {
+  constructor(x, y) {      // runs when you write: new Particle(x, y)
+    this.x = x;            // "this" = the particle being created
+    this.y = y;
+  }
+  update() { this.y += 1; }        // a method: something it can do
+  show()   { circle(this.x, this.y, 10); }
+}
+
+let p = new Particle(200, 50);
+p.update();
+p.show();</pre>
+
+  <h2>A complete particle system</h2>
+  <p>Hold the mouse down to emit particles. Each one gets a random direction, falls with gravity, and fades out over its life.</p>
+</div>
+
+<div class="pg wide" data-id="06-particles" data-title="Particle system">
+<textarea>
+let particles = [];
+
+class Particle {
+  constructor(x, y, hue) {
+    this.x = x;
+    this.y = y;
+    // random direction and speed
+    let angle = random(TWO_PI);
+    let speed = random(1, 6);
+    this.vx = cos(angle) * speed;
+    this.vy = sin(angle) * speed;
+    this.hue = hue + random(-20, 20);
+    this.size = random(4, 14);
+    this.life = 1.0;              // 1 = just born, 0 = dead
+  }
+
+  update() {
+    this.vy += 0.08;              // gravity
+    this.vx *= 0.99;              // air friction
+    this.vy *= 0.99;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life -= 0.012;
+  }
+
+  show() {
+    noStroke();
+    fill(this.hue, 80, 100, this.life);   // fades out as life drops
+    circle(this.x, this.y, this.size * this.life);
+  }
+
+  isDead() {
+    return this.life <= 0;
+  }
+}
+
+function setup() {
+  createCanvas(400, 400);
+  colorMode(HSB);
+}
+
+function draw() {
+  background(250, 50, 6, 0.3);
+
+  if (mouseIsPressed) {
+    for (let i = 0; i < 5; i++) {
+      particles.push(new Particle(mouseX, mouseY, frameCount % 360));
+    }
+  }
+
+  // loop BACKWARDS so removing items doesn't skip any
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    particles[i].show();
+    if (particles[i].isDead()) {
+      particles.splice(i, 1);    // remove 1 item at position i
+    }
+  }
+
+  fill(0, 0, 100);
+  noStroke();
+  text('hold mouse · particles: ' + particles.length, 10, 390);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="callout">
+    <strong>Why loop backwards?</strong>
+    If you remove item 5 while looping forward, item 6 slides into position 5, and the loop moves on to 6, so it skips one. Looping from the end avoids that. Whenever you remove items from an array inside a loop, loop backwards.
+  </div>
+
+  <div class="try">
+    <h4>Try this</h4>
+    <ol>
+      <li>Set gravity to <code>-0.05</code>. Now it's smoke or fire, rising.</li>
+      <li>Set gravity to 0 and friction to <code>0.95</code>. Now it's an explosion that hangs in the air.</li>
+      <li>Add an <code>explode()</code> burst: in <code>mousePressed()</code>, push 150 particles at once. A big burst like this is exactly what you'll trigger on beats in lesson 09.</li>
+      <li>Watch the particle count. Performance matters for live visuals, so keep it under a few thousand.</li>
+    </ol>
+  </div>
+
+  <h2>Functions: name your own building blocks</h2>
+  <p>You've been <em>writing</em> functions (<code>setup</code>, <code>draw</code>, <code>keyPressed</code>) and <em>calling</em> them (<code>circle</code>, <code>map</code>). You can make your own to keep big sketches organized. This will matter a lot when you build scenes for the projects:</p>
+<pre class="snippet">function burst(x, y, count, hue) {
+  for (let i = 0; i &lt; count; i++) {
+    particles.push(new Particle(x, y, hue));
+  }
+}
+
+// later, anywhere:
+burst(width / 2, height / 2, 200, 320);</pre>
+  <p>A function can also <strong>give back</strong> a value with <code>return</code>, like <code>isDead()</code> above.</p>
+
+  <div class="challenge">
+    <h3>🎆 Challenge: Starfield / warp speed (25 min)</h3>
+    <p>Build the classic "flying through space" effect. You'll reuse it as a scene in the Setlist Engine.</p>
+    <ul>
+      <li>A <code>Star</code> class with <code>x</code>, <code>y</code> (random, from <code>-width</code> to <code>width</code>) and <code>z</code> (depth, from <code>width</code> down to 0)</li>
+      <li>Each frame, decrease <code>z</code> by a <code>speed</code>. When <code>z &lt; 1</code>, reset the star to the far distance</li>
+      <li>Draw at screen position <code>sx = x / z * width</code>, <code>sy = y / z * height</code> (after <code>translate</code> to the center). This is perspective!</li>
+      <li>Closer stars are bigger: <code>size = map(z, 0, width, 8, 0)</code></li>
+      <li>The mouse's x position controls the speed</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pg wide" data-id="06-challenge" data-title="Challenge: starfield">
+<textarea>
+let stars = [];
+let speed = 10;
+
+class Star {
+  constructor() {
+    // your code here
+  }
+  update() {
+    // your code here
+  }
+  show() {
+    // your code here
+  }
+}
+
+function setup() {
+  createCanvas(400, 400);
+  for (let i = 0; i < 400; i++) {
+    stars.push(new Star());
+  }
+}
+
+function draw() {
+  background(0);
+  translate(width / 2, height / 2);
+  // update and show every star
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <details class="solution">
+    <summary>Show one possible solution</summary>
+<pre class="snippet">class Star {
+  constructor() {
+    this.reset();
+    this.z = random(width);          // start at random depths
+  }
+  reset() {
+    this.x = random(-width, width);
+    this.y = random(-height, height);
+    this.z = width;
+  }
+  update() {
+    this.z -= speed;
+    if (this.z &lt; 1) this.reset();
+  }
+  show() {
+    let sx = this.x / this.z * width;
+    let sy = this.y / this.z * height;
+    let size = map(this.z, 0, width, 8, 0);
+    noStroke();
+    fill(255);
+    circle(sx, sy, size);
+  }
+}
+
+function draw() {
+  speed = map(mouseX, 0, width, 1, 40, true);
+  background(0);
+  translate(width / 2, height / 2);
+  for (let s of stars) {     // "for...of" is a short way to loop over every item
+    s.update();
+    s.show();
+  }
+}</pre>
+  </details>
+
+  <div class="callout callout--tip">
+    <strong>Checkpoint: you can code now 🎉</strong>
+    Variables, conditions, loops, functions, arrays and classes are the core of almost every programming language. Take a real break before the sound lessons. If you're following the 48-hour plan, it's dinner time.
+  </div>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>

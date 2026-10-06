@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>00 · Start Here — Creative Code in 48h</title>
+<link rel="stylesheet" href="../vendor/codemirror.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-lesson="00" data-root="..">
+<header class="topbar" id="topbar"></header>
+<main class="lesson">
+<div class="prose">
+  <p class="lesson-meta" id="lesson-meta"></p>
+  <h1>Start Here</h1>
+  <p class="lead">In about 24 hours of focused work, spread over 48, you'll go from zero code to two audio-reactive visual projects that your DJ friend can actually run at a gig.</p>
+
+  <div class="goals">
+    <h3>In this lesson</h3>
+    <ul>
+      <li>Learn what <strong>p5.js</strong> is and why we're using it</li>
+      <li>Learn how the live code editors on this site work</li>
+      <li>Change your first line of code</li>
+    </ul>
+  </div>
+
+  <h2>Why p5.js?</h2>
+  <p><strong>p5.js</strong> is a free JavaScript library made for artists, designers and beginners. Its add-on, <strong>p5.sound</strong>, can play audio files, listen to a microphone or line-in, and split music into bass, mids and highs. That's everything you need for music visuals, and it runs in any web browser, so there's nothing to install.</p>
+  <p>JavaScript is also a "real" language. What you learn here carries over to web development, to <a href="https://threejs.org/">three.js</a> for 3D, to <a href="https://hydra.ojack.xyz/">Hydra</a> for live-coded visuals, and to TouchDesigner's scripting.</p>
+
+  <div class="callout callout--dj">
+    <strong>The goal, in DJ terms</strong>
+    By the end you'll have (1) a <em>Song Portrait</em>, a visual built for one track that follows its intro, build, drop and outro, and (2) a <em>Setlist Engine</em>, a full-screen visual app with a scene for each track. It runs from a file or a live line-in from the mixer, and you control it with the keyboard during the set.
+  </div>
+
+  <h2>How this course works</h2>
+  <ul>
+    <li><strong>Every lesson builds on the last one.</strong> Do them in order. Each one shows its time estimate at the top.</li>
+    <li><strong>Every code box is live.</strong> Edit the code on the left and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>⌘</kbd>+<kbd>Enter</kbd> on Mac) or <strong>▶ Run</strong>. The result shows up on the right.</li>
+    <li><strong>Your edits are saved</strong> in this browser automatically. <strong>↺ Reset</strong> brings back the original code.</li>
+    <li><strong>Errors show up under the output</strong>, with a 💡 hint that explains them in plain English. The line with the problem turns red.</li>
+    <li><strong>⤓ Export</strong> downloads any sketch as a standalone HTML file that you can open in any browser, which is handy for your portfolio.</li>
+    <li>When you finish a lesson, click <strong>Mark this lesson complete</strong> at the bottom. Your progress shows up on the home page.</li>
+  </ul>
+
+  <h2>Your first sketch</h2>
+  <p>A p5.js program is called a <strong>sketch</strong>. Every sketch has two special functions:</p>
+  <ul>
+    <li><code>setup()</code> runs <strong>once</strong> when the sketch starts. You create the canvas here.</li>
+    <li><code>draw()</code> runs <strong>over and over</strong>, about 60 times per second. Each run draws one frame of animation.</li>
+  </ul>
+  <p>Run this one, then move your mouse over the output:</p>
+</div>
+
+<div class="pg wide" data-id="00-first" data-title="Your first sketch" data-height="400">
+<textarea>
+function setup() {
+  createCanvas(400, 400);
+}
+
+function draw() {
+  background(20, 20, 30);
+
+  // a circle that follows the mouse
+  fill(124, 246, 200);
+  noStroke();
+  circle(mouseX, mouseY, 80);
+}
+</textarea>
+</div>
+
+<div class="prose">
+  <div class="try">
+    <h4>Try this (5 minutes)</h4>
+    <ol>
+      <li>Change <code>80</code> to <code>200</code> and run it again. What changed?</li>
+      <li>Change the three numbers in <code>fill(124, 246, 200)</code>. These are <strong>red, green, blue</strong>, each from 0 to 255. Make the circle hot pink.</li>
+      <li>Delete the line <code>background(20, 20, 30);</code> and run it. Why does it leave a trail? (Hint: <code>background()</code> wipes the canvas every frame.)</li>
+      <li>Break something on purpose: change <code>circle</code> to <code>circel</code>. Read the error and the hint, then fix it.</li>
+    </ol>
+  </div>
+
+  <h2>Three rules of code</h2>
+  <ol>
+    <li><strong>Spelling and capitals matter.</strong> <code>createCanvas</code> works, <code>createcanvas</code> doesn't.</li>
+    <li><strong>Brackets come in pairs.</strong> Every <code>(</code> needs a <code>)</code> and every <code>{</code> needs a <code>}</code>. The editor highlights the matching bracket when your cursor is next to one.</li>
+    <li><strong>Code runs from top to bottom.</strong> Inside <code>draw()</code>, later shapes are painted on top of earlier ones, like layers.</li>
+  </ol>
+  <p>Lines that start with <code>//</code> are <strong>comments</strong>. The computer ignores them, so use them to leave notes for yourself.</p>
+
+  <h2>A note on audio before we start</h2>
+  <p>From lesson 07 on, a <strong>Track</strong> bar appears at the top of the page. It ships with a demo beat made with code (120 BPM, with an intro, groove, breakdown and drop) so you can learn with predictable audio. Whenever you like, click <strong>Choose your own track…</strong> to load an MP3 or WAV from your computer. The file never leaves your machine.</p>
+  <p><strong>Do this now:</strong> ask your DJ friend for 2–3 tracks they love to play, plus a recent setlist. You'll need them for the projects tomorrow.</p>
+
+  <div class="callout callout--tip">
+    <strong>How to open this site</strong>
+    The easiest way is the online version (if it's hosted on GitHub Pages) or double-clicking <code>index.html</code>. Everything, including the code libraries and the demo audio, is bundled with the site, so it also works offline. That matters at gigs.
+  </div>
+</div>
+</main>
+<footer id="lesson-footer"></footer>
+<script src="../vendor/codemirror.bundle.js"></script>
+<script src="../assets/course.js"></script>
+<script src="../assets/playground.js"></script>
+</body>
+</html>
